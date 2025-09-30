@@ -1,0 +1,5 @@
+selenium==4.34.0
+pytz==2025.2
+webdriver-manager==4.0.2
+flask==3.0.0
+gunicorn==21.2.0
