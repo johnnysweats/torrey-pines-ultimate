@@ -182,6 +182,10 @@ def run_waitlist_automation(user_info, course, players, target_time):
 def index():
     return render_template('index.html')
 
+@app.route('/test')
+def test():
+    return jsonify({'message': 'Full app is working!', 'status': 'success'})
+
 @app.route('/health')
 def health():
     return jsonify({'status': 'healthy', 'message': 'Torrey Pines Waitlist API is running'})
