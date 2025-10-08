@@ -182,6 +182,10 @@ def run_waitlist_automation(user_info, course, players, target_time):
 def index():
     return render_template('index.html')
 
+@app.route('/api')
+def api():
+    return jsonify({'message': 'This is the FULL app with HTML interface!', 'version': '2.0'})
+
 @app.route('/test')
 def test():
     return jsonify({'message': 'Full app is working!', 'status': 'success'})
