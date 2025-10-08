@@ -74,11 +74,21 @@ def run_waitlist_automation(user_info, course, players, target_time):
         chrome_options.add_argument("--disable-dev-shm-usage")
         chrome_options.add_argument("--disable-gpu")
         chrome_options.add_argument("--window-size=1920,1080")
+        chrome_options.add_argument("--disable-extensions")
+        chrome_options.add_argument("--disable-background-timer-throttling")
+        chrome_options.add_argument("--disable-backgrounding-occluded-windows")
+        chrome_options.add_argument("--disable-renderer-backgrounding")
+        chrome_options.binary_location = "/usr/bin/chromium-browser"
         
         driver = None
         try:
-            service = Service(ChromeDriverManager().install())
-            driver = webdriver.Chrome(service=service, options=chrome_options)
+            # Try to use system chromium first, fallback to ChromeDriverManager
+            try:
+                service = Service("/usr/bin/chromedriver")
+                driver = webdriver.Chrome(service=service, options=chrome_options)
+            except:
+                service = Service(ChromeDriverManager().install())
+                driver = webdriver.Chrome(service=service, options=chrome_options)
             driver.set_script_timeout(30)
 
             driver.execute_cdp_cmd("Emulation.setGeolocationOverride", {
@@ -171,6 +181,10 @@ def run_waitlist_automation(user_info, course, players, target_time):
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/health')
+def health():
+    return jsonify({'status': 'healthy', 'message': 'Torrey Pines Waitlist API is running'})
 
 @app.route('/start', methods=['POST'])
 def start_automation():
