@@ -13,6 +13,11 @@ database.init_db()
 def index():
     return render_template('index.html')
 
+@app.route('/health')
+def health():
+    """Health check endpoint for Railway"""
+    return jsonify({'status': 'healthy', 'service': 'Torrey Pines Ultimate'})
+
 def run_automation_async(job_id, data):
     """Run automation in background thread"""
     try:
@@ -134,4 +139,6 @@ def get_time():
     })
 
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=8080)
+    import os
+    port = int(os.environ.get('PORT', 8080))
+    app.run(host='0.0.0.0', port=port)
