@@ -26,6 +26,11 @@ def setup_driver(headless=False):
         "profile.default_content_settings.geolocation": 1,
     })
     
+    # Set Chrome binary location for Docker/Linux
+    import os
+    if os.path.exists('/usr/bin/google-chrome'):
+        chrome_options.binary_location = '/usr/bin/google-chrome'
+    
     if headless:
         # Headless mode for cloud/production
         chrome_options.add_argument("--headless=new")
@@ -35,6 +40,7 @@ def setup_driver(headless=False):
         chrome_options.add_argument("--window-size=1920,1080")
         chrome_options.add_argument("--disable-blink-features=AutomationControlled")
         chrome_options.add_argument("--user-agent=Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36")
+        chrome_options.add_argument("--remote-debugging-port=9222")
     else:
         # Start maximized so we can see everything (for local testing)
         chrome_options.add_argument("--start-maximized")
@@ -43,19 +49,16 @@ def setup_driver(headless=False):
     chrome_options.add_experimental_option('excludeSwitches', ['enable-logging'])
     
     try:
+        # Use Selenium's built-in driver manager
+        from selenium.webdriver.chrome.service import Service
+        from selenium.webdriver.common.selenium_manager import SeleniumManager
+        
         driver = webdriver.Chrome(options=chrome_options)
+        print(f"Chrome started successfully. Version: {driver.capabilities['browserVersion']}")
+        return driver
     except Exception as e:
         print(f"Failed to start Chrome: {e}")
         raise
-    
-    # Override geolocation using Chrome DevTools Protocol
-    driver.execute_cdp_cmd("Emulation.setGeolocationOverride", {
-        "latitude": LATITUDE,
-        "longitude": LONGITUDE,
-        "accuracy": 100
-    })
-    
-    return driver
 
 def fill_react_select(driver, container_element, value):
     """Fill in a react-select dropdown"""
@@ -110,6 +113,14 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
     try:
         print("\n[1/7] Setting up browser...")
         driver = setup_driver(headless=headless)
+        
+        # Override geolocation using Chrome DevTools Protocol
+        driver.execute_cdp_cmd("Emulation.setGeolocationOverride", {
+            "latitude": LATITUDE,
+            "longitude": LONGITUDE,
+            "accuracy": 100
+        })
+        print(f"✓ Geolocation set to: {LATITUDE}, {LONGITUDE}")
         
         print(f"\n[2/7] Navigating to {WAITLIST_URL}...")
         driver.get(WAITLIST_URL)
