@@ -228,6 +228,31 @@ def cancel_job(job_id):
         'message': 'Job cancelled successfully'
     })
 
+@app.route('/api/jobs/clear-completed', methods=['POST'])
+def clear_completed_jobs():
+    """Delete all completed and cancelled jobs"""
+    try:
+        import sqlite3
+        conn = sqlite3.connect(database.DB_NAME)
+        cursor = conn.cursor()
+        
+        # Delete completed and cancelled jobs
+        cursor.execute("DELETE FROM jobs WHERE status IN ('completed', 'cancelled')")
+        deleted_count = cursor.rowcount
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({
+            'status': 'success',
+            'message': f'Cleared {deleted_count} completed/cancelled jobs'
+        })
+    except Exception as e:
+        return jsonify({
+            'status': 'error',
+            'message': str(e)
+        }), 500
+
 @app.route('/api/time', methods=['GET'])
 def get_time():
     """Get current server time in Pacific timezone"""

@@ -81,7 +81,7 @@ def fill_react_select(driver, container_element, value):
         print(f"Error filling react-select: {e}")
         return False
 
-def run_waitlist_automation(first_name, last_name, email, phone, course, players, headless=False):
+def run_waitlist_automation(first_name, last_name, email, phone, course, players, headless=False, max_retries=60, retry_delay=5):
     """
     Run the Torrey Pines waitlist automation
     
@@ -93,6 +93,8 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
         course: Course selection (North, South, 1st Available)
         players: Number of players (1-4)
         headless: Run in headless mode (True for production)
+        max_retries: Maximum number of times to check for waitlist button (default 60)
+        retry_delay: Seconds to wait between retries (default 5)
     
     Returns:
         dict: Result with status and message
@@ -123,54 +125,72 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
         print(f"✓ Geolocation set to: {LATITUDE}, {LONGITUDE}")
         
         print(f"\n[2/7] Navigating to {WAITLIST_URL}...")
-        driver.get(WAITLIST_URL)
-        time.sleep(5)  # Give page more time to load
         
-        print(f"Current URL: {driver.current_url}")
-        print(f"Page title: {driver.title}")
+        # RETRY LOGIC - Keep trying until we find the Join waitlist button!
+        join_button = None
+        attempt = 0
         
-        # Check if we're on the closed page
-        if "/closed" in driver.current_url:
-            return {
-                'status': 'error',
-                'message': 'Waitlist is currently closed.'
-            }
+        print(f"\n[3/7] Looking for 'Join waitlist' button (will retry up to {max_retries} times)...")
         
-        print(f"\n[3/7] Looking for 'Join waitlist' button...")
-        wait = WebDriverWait(driver, 15)
-        
-        # Find and click the "Join waitlist" button
-        try:
-            # Wait for buttons to be present
-            wait.until(EC.presence_of_element_located((By.TAG_NAME, "button")))
-            time.sleep(2)
+        while attempt < max_retries and not join_button:
+            attempt += 1
             
-            buttons = driver.find_elements(By.TAG_NAME, "button")
-            print(f"Found {len(buttons)} buttons")
-            
-            join_button = None
-            for btn in buttons:
-                btn_text = btn.text.lower()
-                print(f"  Button text: '{btn.text}'")
-                if "join" in btn_text and "waitlist" in btn_text:
-                    join_button = btn
-                    break
-            
-            if not join_button:
-                # Take screenshot for debugging
-                screenshot_path = f"screenshot_no_button_{int(time.time())}.png"
-                driver.save_screenshot(screenshot_path)
-                print(f"Screenshot saved: {screenshot_path}")
+            try:
+                driver.get(WAITLIST_URL)
+                time.sleep(3)
                 
-                return {
-                    'status': 'error',
-                    'message': 'Join waitlist button not found. Waitlist may be closed.',
-                    'screenshot': screenshot_path
-                }
-        except Exception as e:
+                current_url = driver.current_url
+                print(f"\nAttempt {attempt}/{max_retries}")
+                print(f"  URL: {current_url}")
+                
+                # Check if we're on the closed page
+                if "/closed" in current_url:
+                    print(f"  Status: Waitlist closed - will retry in {retry_delay} seconds...")
+                    if attempt < max_retries:
+                        time.sleep(retry_delay)
+                        continue
+                    else:
+                        return {
+                            'status': 'error',
+                            'message': f'Waitlist remained closed after {max_retries} attempts over {max_retries * retry_delay} seconds.'
+                        }
+                
+                # Look for the Join waitlist button
+                wait = WebDriverWait(driver, 5)
+                wait.until(EC.presence_of_element_located((By.TAG_NAME, "button")))
+                
+                buttons = driver.find_elements(By.TAG_NAME, "button")
+                print(f"  Found {len(buttons)} buttons")
+                
+                for btn in buttons:
+                    btn_text = btn.text.lower()
+                    if "join" in btn_text and "waitlist" in btn_text:
+                        join_button = btn
+                        print(f"  ✓ FOUND IT! Button text: '{btn.text}'")
+                        break
+                
+                if not join_button:
+                    print(f"  'Join waitlist' button not found yet")
+                    if attempt < max_retries:
+                        print(f"  Waiting {retry_delay} seconds before retry...")
+                        time.sleep(retry_delay)
+                    
+            except Exception as e:
+                print(f"  Error on attempt {attempt}: {e}")
+                if attempt < max_retries:
+                    print(f"  Retrying in {retry_delay} seconds...")
+                    time.sleep(retry_delay)
+        
+        # After all retries, check if we found the button
+        if not join_button:
+            screenshot_path = f"screenshot_no_button_{int(time.time())}.png"
+            driver.save_screenshot(screenshot_path)
+            print(f"Screenshot saved: {screenshot_path}")
+            
             return {
                 'status': 'error',
-                'message': f'Error finding button: {str(e)}'
+                'message': f'Join waitlist button not found after {max_retries} attempts ({max_retries * retry_delay / 60:.1f} minutes). Waitlist may still be closed.',
+                'screenshot': screenshot_path
             }
         
         print("✓ Found button, clicking...")
