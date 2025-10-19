@@ -10,12 +10,22 @@ def index():
 def submit():
     data = request.get_json()
     
-    # For now, just print the data and return success
+    run_type = data.get('runType', 'now')
+    
+    # Log the submission
     print("Received submission:", data)
+    
+    if run_type == 'now':
+        # TODO: Execute automation immediately
+        message = f"Great! We'll run the waitlist automation now for {data['firstName']} {data['lastName']}."
+    else:
+        # TODO: Schedule automation for later
+        schedule_time = data.get('scheduleDateTime')
+        message = f"Perfect! We've scheduled the waitlist automation for {schedule_time} for {data['firstName']} {data['lastName']}."
     
     return jsonify({
         'status': 'success',
-        'message': 'Your waitlist request has been received!',
+        'message': message,
         'data': data
     })
 
