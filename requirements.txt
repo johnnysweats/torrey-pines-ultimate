@@ -2,3 +2,4 @@ Flask==3.0.0
 gunicorn==21.2.0
 pytz==2024.1
 selenium==4.34.0
+APScheduler==3.10.4
