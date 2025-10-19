@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+
+# Build files
+build/
+dist/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+*.icloud
+
+# Backup files
+*_backup.py
+*.backup
+*_full.py
+*_simple.py
+*_web_only.py
+*_with_selenium.py
+requirements_*.txt
+nixpacks.toml.backup
+Dockerfile.backup
+
+# Old app files
+golf_waitlist_*.py
+waitlist.py
+waitlist_backup.py
+setup_*.py
+run_waitlist.py
+launch_*.command
+test_web_app.py
+create_*.py
+deploy_to_railway.sh
+setup.sh
+DEPLOYMENT.md
+
