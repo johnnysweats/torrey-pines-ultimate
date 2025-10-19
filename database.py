@@ -61,7 +61,7 @@ def add_job(data):
         data['players'],
         data['runType'],
         data.get('scheduleDateTime'),
-        'pending' if data['runType'] == 'later' else 'completed',
+        'pending' if data['runType'] == 'later' else 'running',
         get_pacific_time().isoformat()
     ))
     

@@ -10,9 +10,11 @@ function switchTab(tabName) {
     });
     document.getElementById(tabName).classList.add('active');
     
-    // If switching to scheduled jobs, load them
+    // If switching to scheduled jobs, load them and start auto-refresh
     if (tabName === 'scheduled-jobs') {
-        loadJobs();
+        startJobsAutoRefresh();
+    } else {
+        stopJobsAutoRefresh();
     }
 }
 
@@ -278,6 +280,25 @@ async function updateServerTime() {
         }
     } catch (error) {
         console.error('Error fetching server time:', error);
+    }
+}
+
+// Auto-refresh jobs list when on Scheduled Jobs tab
+let jobsRefreshInterval = null;
+
+function startJobsAutoRefresh() {
+    // Refresh jobs every 5 seconds when on the jobs tab
+    if (jobsRefreshInterval) {
+        clearInterval(jobsRefreshInterval);
+    }
+    loadJobs(); // Load immediately
+    jobsRefreshInterval = setInterval(loadJobs, 5000);
+}
+
+function stopJobsAutoRefresh() {
+    if (jobsRefreshInterval) {
+        clearInterval(jobsRefreshInterval);
+        jobsRefreshInterval = null;
     }
 }
 

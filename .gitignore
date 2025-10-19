@@ -40,8 +40,9 @@ Dockerfile.backup
 # Automation screenshots
 screenshot_*.png
 
-# Local automation script
+# Local automation scripts
 automation_local.py
+test_integration.py
 
 # Old app files
 golf_waitlist_*.py

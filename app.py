@@ -1,6 +1,8 @@
 from flask import Flask, render_template, request, jsonify
 import database
 from datetime import datetime
+from automation import run_waitlist_automation
+import threading
 
 app = Flask(__name__)
 
@@ -10,6 +12,28 @@ database.init_db()
 @app.route('/')
 def index():
     return render_template('index.html')
+
+def run_automation_async(job_id, data):
+    """Run automation in background thread"""
+    try:
+        result = run_waitlist_automation(
+            first_name=data['firstName'],
+            last_name=data['lastName'],
+            email=data['email'],
+            phone=data['phone'],
+            course=data['course'],
+            players=data['players'],
+            headless=True  # Run headless in production
+        )
+        
+        # Update job in database with result
+        if result['status'] == 'success':
+            database.mark_job_completed(job_id, result['message'])
+        else:
+            database.mark_job_completed(job_id, f"Error: {result['message']}")
+            
+    except Exception as e:
+        database.mark_job_completed(job_id, f"Error: {str(e)}")
 
 @app.route('/submit', methods=['POST'])
 def submit():
@@ -24,8 +48,12 @@ def submit():
     print(f"Received submission (Job ID: {job_id}):", data)
     
     if run_type == 'now':
-        # TODO: Execute automation immediately
-        message = f"Great! We'll run the waitlist automation now for {data['firstName']} {data['lastName']}."
+        # Execute automation immediately in background thread
+        thread = threading.Thread(target=run_automation_async, args=(job_id, data))
+        thread.daemon = True
+        thread.start()
+        
+        message = f"Great! Running the waitlist automation now for {data['firstName']} {data['lastName']}. Check the Scheduled Jobs tab to see the status."
     else:
         # Job is scheduled for later
         schedule_time = data.get('scheduleDateTime')
