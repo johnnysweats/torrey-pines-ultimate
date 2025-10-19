@@ -1,5 +1,6 @@
 from flask import Flask, render_template, request, jsonify
 import database
+from datetime import datetime
 
 app = Flask(__name__)
 
@@ -91,6 +92,17 @@ def cancel_job(job_id):
     return jsonify({
         'status': 'success',
         'message': 'Job cancelled successfully'
+    })
+
+@app.route('/api/time', methods=['GET'])
+def get_time():
+    """Get current server time in Pacific timezone"""
+    pacific_time = database.get_pacific_time()
+    return jsonify({
+        'status': 'success',
+        'time': pacific_time.isoformat(),
+        'timezone': 'America/Los_Angeles',
+        'formatted': pacific_time.strftime('%B %d, %Y at %I:%M %p PST')
     })
 
 if __name__ == '__main__':

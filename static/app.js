@@ -207,12 +207,14 @@ function formatDateTime(dateTimeStr) {
     
     const date = new Date(dateTimeStr);
     return date.toLocaleString('en-US', {
+        timeZone: 'America/Los_Angeles',
         month: 'short',
         day: 'numeric',
         year: 'numeric',
         hour: 'numeric',
         minute: '2-digit',
-        hour12: true
+        hour12: true,
+        timeZoneName: 'short'
     });
 }
 
@@ -265,8 +267,25 @@ async function editJob(jobId) {
     await cancelJob(jobId);
 }
 
+// Update server time display
+async function updateServerTime() {
+    try {
+        const response = await fetch('/api/time');
+        const result = await response.json();
+        
+        if (result.status === 'success') {
+            document.getElementById('serverTime').textContent = result.formatted;
+        }
+    } catch (error) {
+        console.error('Error fetching server time:', error);
+    }
+}
+
 // Load jobs when page loads
 document.addEventListener('DOMContentLoaded', () => {
     loadJobs();
+    updateServerTime();
+    // Update server time every 30 seconds
+    setInterval(updateServerTime, 30000);
 });
 

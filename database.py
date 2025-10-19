@@ -5,6 +5,14 @@ Database module for storing and managing waitlist jobs
 import sqlite3
 from datetime import datetime
 import json
+import pytz
+
+# San Diego is in Pacific timezone
+PACIFIC_TZ = pytz.timezone('America/Los_Angeles')
+
+def get_pacific_time():
+    """Get current time in Pacific timezone"""
+    return datetime.now(PACIFIC_TZ)
 
 DB_NAME = 'waitlist_jobs.db'
 
@@ -54,7 +62,7 @@ def add_job(data):
         data['runType'],
         data.get('scheduleDateTime'),
         'pending' if data['runType'] == 'later' else 'completed',
-        datetime.now().isoformat()
+        get_pacific_time().isoformat()
     ))
     
     job_id = cursor.lastrowid
@@ -156,7 +164,7 @@ def mark_job_completed(job_id, result):
             executed_at = ?,
             result = ?
         WHERE id = ?
-    ''', ('completed', datetime.now().isoformat(), result, job_id))
+    ''', ('completed', get_pacific_time().isoformat(), result, job_id))
     
     conn.commit()
     conn.close()
