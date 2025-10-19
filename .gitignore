@@ -8,6 +8,11 @@ venv/
 env/
 ENV/
 
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
 # Build files
 build/
 dist/
@@ -31,6 +36,12 @@ dist/
 requirements_*.txt
 nixpacks.toml.backup
 Dockerfile.backup
+
+# Automation screenshots
+screenshot_*.png
+
+# Local automation script
+automation_local.py
 
 # Old app files
 golf_waitlist_*.py

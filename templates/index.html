@@ -15,24 +15,18 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             min-height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             padding: 20px;
         }
         
-        .container {
-            background: white;
-            padding: 40px;
-            border-radius: 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            max-width: 500px;
-            width: 100%;
+        .main-container {
+            max-width: 900px;
+            margin: 0 auto;
         }
         
         .header {
             text-align: center;
             margin-bottom: 30px;
+            color: white;
         }
         
         .emoji {
@@ -41,15 +35,63 @@
         }
         
         h1 {
-            color: #333;
-            font-size: 2em;
+            font-size: 2.5em;
             margin-bottom: 10px;
             font-weight: 700;
         }
         
         .subtitle {
-            color: #666;
-            font-size: 0.95em;
+            font-size: 1.1em;
+            opacity: 0.9;
+        }
+        
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
+        .tab {
+            flex: 1;
+            padding: 15px 20px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.05em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .tab:hover {
+            background: rgba(255, 255, 255, 0.3);
+        }
+        
+        .tab.active {
+            background: white;
+            color: #667eea;
+        }
+        
+        .container {
+            background: white;
+            padding: 40px;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
         }
         
         .form-group {
@@ -191,6 +233,19 @@
             box-shadow: 0 10px 25px rgba(72, 187, 120, 0.3);
         }
         
+        .btn-danger {
+            background: linear-gradient(135deg, #f56565 0%, #c53030 100%);
+        }
+        
+        .btn-danger:hover {
+            box-shadow: 0 10px 25px rgba(245, 101, 101, 0.3);
+        }
+        
+        .btn-small {
+            padding: 8px 16px;
+            font-size: 0.9em;
+        }
+        
         .message {
             margin-top: 20px;
             padding: 15px;
@@ -253,190 +308,263 @@
             position: relative;
             z-index: 1;
         }
+        
+        /* Jobs table styles */
+        .jobs-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .jobs-header h2 {
+            color: #333;
+            font-size: 1.5em;
+        }
+        
+        .filter-buttons {
+            display: flex;
+            gap: 10px;
+        }
+        
+        .filter-btn {
+            padding: 8px 16px;
+            background: #f0f0f0;
+            color: #666;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 0.9em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .filter-btn.active {
+            background: #667eea;
+            color: white;
+            border-color: #667eea;
+        }
+        
+        .jobs-list {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+        
+        .job-card {
+            border: 2px solid #e0e0e0;
+            border-radius: 12px;
+            padding: 20px;
+            transition: all 0.3s ease;
+        }
+        
+        .job-card:hover {
+            border-color: #667eea;
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+        }
+        
+        .job-card.pending {
+            border-left: 4px solid #f59e0b;
+        }
+        
+        .job-card.completed {
+            border-left: 4px solid #10b981;
+        }
+        
+        .job-card.cancelled {
+            border-left: 4px solid #ef4444;
+            opacity: 0.7;
+        }
+        
+        .job-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: start;
+            margin-bottom: 15px;
+        }
+        
+        .job-title {
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .job-status {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 0.85em;
+            font-weight: 600;
+        }
+        
+        .job-status.pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+        
+        .job-status.completed {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .job-status.cancelled {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        
+        .job-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin-bottom: 15px;
+            font-size: 0.95em;
+            color: #666;
+        }
+        
+        .job-detail {
+            display: flex;
+            gap: 5px;
+        }
+        
+        .job-detail strong {
+            color: #333;
+        }
+        
+        .job-actions {
+            display: flex;
+            gap: 10px;
+            padding-top: 10px;
+            border-top: 1px solid #e0e0e0;
+        }
+        
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #999;
+        }
+        
+        .empty-state-icon {
+            font-size: 4em;
+            margin-bottom: 15px;
+        }
+        
+        .empty-state p {
+            font-size: 1.1em;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
+    <div class="main-container">
         <div class="header">
             <div class="emoji">⛳</div>
             <h1>Torrey Pines Ultimate</h1>
             <p class="subtitle">Automated Waitlist Assistant</p>
         </div>
         
-        <form id="waitlistForm">
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="firstName">First Name</label>
-                    <input type="text" id="firstName" name="firstName" required>
-                </div>
-                
-                <div class="form-group">
-                    <label for="lastName">Last Name</label>
-                    <input type="text" id="lastName" name="lastName" required>
-                </div>
-            </div>
-            
-            <div class="form-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" name="email" required>
-            </div>
-            
-            <div class="form-group">
-                <label for="phone">Cell Phone</label>
-                <input type="tel" id="phone" name="phone" placeholder="(555) 123-4567" required>
-            </div>
-            
-            <div class="form-row">
-                <div class="form-group">
-                    <label for="course">Course</label>
-                    <select id="course" name="course" required>
-                        <option value="">Select Course</option>
-                        <option value="North">North</option>
-                        <option value="South">South</option>
-                        <option value="1st Available">1st Available</option>
-                    </select>
-                </div>
-                
-                <div class="form-group">
-                    <label for="players">Player #</label>
-                    <select id="players" name="players" required>
-                        <option value="">Select #</option>
-                        <option value="1">1</option>
-                        <option value="2">2</option>
-                        <option value="3">3</option>
-                        <option value="4">4</option>
-                    </select>
-                </div>
-            </div>
-            
-            <div class="divider">
-                <span>WHEN TO RUN</span>
-            </div>
-            
-            <div class="schedule-options">
-                <div class="schedule-option active" data-option="now">
-                    ▶️ Run Now
-                </div>
-                <div class="schedule-option" data-option="later">
-                    ⏰ Schedule Later
-                </div>
-            </div>
-            
-            <div class="datetime-group" id="datetimeGroup">
-                <div class="form-group">
-                    <label for="scheduleDateTime">Schedule Date & Time</label>
-                    <input type="datetime-local" id="scheduleDateTime" name="scheduleDateTime">
-                </div>
-            </div>
-            
-            <div class="button-group">
-                <button type="submit" id="runNowBtn" class="btn-secondary">
-                    ▶️ Run Now
-                </button>
-                <button type="submit" id="scheduleLaterBtn" style="display: none;">
-                    ⏰ Schedule
-                </button>
-            </div>
-        </form>
+        <div class="tabs">
+            <button class="tab active" onclick="switchTab('new-job')">➕ New Job</button>
+            <button class="tab" onclick="switchTab('scheduled-jobs')">📋 Scheduled Jobs</button>
+        </div>
         
-        <div id="message" class="message"></div>
+        <div class="container">
+            <!-- New Job Tab -->
+            <div id="new-job" class="tab-content active">
+                <form id="waitlistForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="firstName">First Name</label>
+                            <input type="text" id="firstName" name="firstName" required>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="lastName">Last Name</label>
+                            <input type="text" id="lastName" name="lastName" required>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" required>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="phone">Cell Phone</label>
+                        <input type="tel" id="phone" name="phone" placeholder="(555) 123-4567" required>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="course">Course</label>
+                            <select id="course" name="course" required>
+                                <option value="">Select Course</option>
+                                <option value="North">North</option>
+                                <option value="South">South</option>
+                                <option value="1st Available">1st Available</option>
+                            </select>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="players">Player #</label>
+                            <select id="players" name="players" required>
+                                <option value="">Select #</option>
+                                <option value="1">1</option>
+                                <option value="2">2</option>
+                                <option value="3">3</option>
+                                <option value="4">4</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="divider">
+                        <span>WHEN TO RUN</span>
+                    </div>
+                    
+                    <div class="schedule-options">
+                        <div class="schedule-option active" data-option="now">
+                            ▶️ Run Now
+                        </div>
+                        <div class="schedule-option" data-option="later">
+                            ⏰ Schedule Later
+                        </div>
+                    </div>
+                    
+                    <div class="datetime-group" id="datetimeGroup">
+                        <div class="form-group">
+                            <label for="scheduleDateTime">Schedule Date & Time</label>
+                            <input type="datetime-local" id="scheduleDateTime" name="scheduleDateTime">
+                        </div>
+                    </div>
+                    
+                    <div class="button-group">
+                        <button type="submit" id="runNowBtn" class="btn-secondary">
+                            ▶️ Run Now
+                        </button>
+                        <button type="submit" id="scheduleLaterBtn" style="display: none;">
+                            ⏰ Schedule
+                        </button>
+                    </div>
+                </form>
+                
+                <div id="message" class="message"></div>
+            </div>
+            
+            <!-- Scheduled Jobs Tab -->
+            <div id="scheduled-jobs" class="tab-content">
+                <div class="jobs-header">
+                    <h2>Your Jobs</h2>
+                    <div class="filter-buttons">
+                        <button class="filter-btn active" data-filter="all">All</button>
+                        <button class="filter-btn" data-filter="pending">Pending</button>
+                        <button class="filter-btn" data-filter="completed">Completed</button>
+                    </div>
+                </div>
+                
+                <div id="jobsList" class="jobs-list">
+                    <!-- Jobs will be loaded here -->
+                </div>
+            </div>
+        </div>
     </div>
     
-    <script>
-        const form = document.getElementById('waitlistForm');
-        const runNowBtn = document.getElementById('runNowBtn');
-        const scheduleLaterBtn = document.getElementById('scheduleLaterBtn');
-        const messageDiv = document.getElementById('message');
-        const datetimeGroup = document.getElementById('datetimeGroup');
-        const scheduleOptions = document.querySelectorAll('.schedule-option');
-        const datetimeInput = document.getElementById('scheduleDateTime');
-        
-        let selectedOption = 'now';
-        
-        // Handle schedule option selection
-        scheduleOptions.forEach(option => {
-            option.addEventListener('click', () => {
-                // Remove active class from all options
-                scheduleOptions.forEach(opt => opt.classList.remove('active'));
-                
-                // Add active class to clicked option
-                option.classList.add('active');
-                
-                // Get selected option
-                selectedOption = option.dataset.option;
-                
-                // Toggle datetime input and buttons
-                if (selectedOption === 'later') {
-                    datetimeGroup.classList.add('show');
-                    datetimeInput.required = true;
-                    runNowBtn.style.display = 'none';
-                    scheduleLaterBtn.style.display = 'block';
-                } else {
-                    datetimeGroup.classList.remove('show');
-                    datetimeInput.required = false;
-                    runNowBtn.style.display = 'block';
-                    scheduleLaterBtn.style.display = 'none';
-                }
-            });
-        });
-        
-        form.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            
-            const activeButton = selectedOption === 'now' ? runNowBtn : scheduleLaterBtn;
-            const originalText = activeButton.textContent;
-            
-            // Disable button and show loading state
-            activeButton.disabled = true;
-            activeButton.textContent = 'Submitting...';
-            
-            // Get form data
-            const formData = {
-                firstName: document.getElementById('firstName').value,
-                lastName: document.getElementById('lastName').value,
-                email: document.getElementById('email').value,
-                phone: document.getElementById('phone').value,
-                course: document.getElementById('course').value,
-                players: document.getElementById('players').value,
-                runType: selectedOption,
-                scheduleDateTime: selectedOption === 'later' ? datetimeInput.value : null
-            };
-            
-            try {
-                const response = await fetch('/submit', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
-                
-                const result = await response.json();
-                
-                if (result.status === 'success') {
-                    showMessage(result.message, 'success');
-                    form.reset();
-                    // Reset to default state
-                    scheduleOptions[0].click();
-                } else {
-                    showMessage('Something went wrong. Please try again.', 'error');
-                }
-            } catch (error) {
-                showMessage('Error submitting form. Please try again.', 'error');
-            } finally {
-                activeButton.disabled = false;
-                activeButton.textContent = originalText;
-            }
-        });
-        
-        function showMessage(text, type) {
-            messageDiv.textContent = text;
-            messageDiv.className = `message ${type} show`;
-            
-            setTimeout(() => {
-                messageDiv.classList.remove('show');
-            }, 5000);
-        }
-    </script>
+    <script src="/static/app.js"></script>
 </body>
 </html>
