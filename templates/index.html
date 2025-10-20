@@ -314,8 +314,8 @@
         /* Jobs table styles */
         .jobs-header {
             display: flex;
-            justify-content: space-between;
-            align-items: center;
+            flex-direction: column;
+            gap: 15px;
             margin-bottom: 20px;
         }
         
@@ -324,21 +324,31 @@
             font-size: 1.5em;
         }
         
+        .jobs-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            align-items: center;
+        }
+        
         .filter-buttons {
             display: flex;
-            gap: 10px;
+            flex-wrap: wrap;
+            gap: 8px;
+            flex: 1;
         }
         
         .filter-btn {
-            padding: 8px 16px;
+            padding: 10px 16px;
             background: #f0f0f0;
             color: #666;
             border: 2px solid #e0e0e0;
             border-radius: 8px;
-            font-size: 0.9em;
+            font-size: 0.85em;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.3s ease;
+            white-space: nowrap;
         }
         
         .filter-btn.active {
@@ -425,26 +435,40 @@
         .job-details {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 10px;
+            gap: 12px;
             margin-bottom: 15px;
-            font-size: 0.95em;
+            font-size: 0.9em;
             color: #666;
         }
         
         .job-detail {
             display: flex;
-            gap: 5px;
+            flex-direction: column;
+            gap: 4px;
         }
         
         .job-detail strong {
             color: #333;
+            font-size: 0.85em;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .job-detail span {
+            word-break: break-word;
         }
         
         .job-actions {
             display: flex;
+            flex-wrap: wrap;
             gap: 10px;
             padding-top: 10px;
             border-top: 1px solid #e0e0e0;
+        }
+        
+        .job-actions button {
+            flex: 1;
+            min-width: 120px;
         }
         
         .empty-state {
@@ -460,6 +484,109 @@
         
         .empty-state p {
             font-size: 1.1em;
+        }
+        
+        /* Mobile Responsive Styles */
+        @media (max-width: 768px) {
+            .container {
+                padding: 25px 20px;
+            }
+            
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .header .subtitle {
+                font-size: 0.95em;
+            }
+            
+            .tabs {
+                gap: 8px;
+            }
+            
+            .tab {
+                font-size: 0.95em;
+                padding: 12px 16px;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+                gap: 0;
+            }
+            
+            .schedule-options {
+                flex-direction: column;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+            }
+            
+            .job-card {
+                padding: 16px;
+            }
+            
+            .job-header {
+                flex-direction: column;
+                gap: 10px;
+                align-items: flex-start;
+            }
+            
+            .job-title {
+                font-size: 1em;
+            }
+            
+            .job-details {
+                grid-template-columns: 1fr;
+                gap: 15px;
+            }
+            
+            .job-detail {
+                padding-bottom: 8px;
+                border-bottom: 1px solid #f0f0f0;
+            }
+            
+            .job-detail:last-child {
+                border-bottom: none;
+                padding-bottom: 0;
+            }
+            
+            .filter-buttons {
+                width: 100%;
+            }
+            
+            .filter-btn {
+                flex: 1;
+                min-width: 70px;
+            }
+            
+            .jobs-controls {
+                flex-direction: column;
+                width: 100%;
+            }
+            
+            .jobs-controls button {
+                width: 100%;
+            }
+        }
+        
+        @media (max-width: 480px) {
+            .emoji {
+                font-size: 2.5em;
+            }
+            
+            .header h1 {
+                font-size: 1.5em;
+            }
+            
+            .job-status {
+                font-size: 0.75em;
+                padding: 3px 10px;
+            }
         }
     </style>
 </head>
@@ -566,14 +693,14 @@
             <div id="scheduled-jobs" class="tab-content">
                 <div class="jobs-header">
                     <h2>Your Jobs</h2>
-                    <div style="display: flex; gap: 15px; align-items: center;">
+                    <div class="jobs-controls">
                         <div class="filter-buttons">
                             <button class="filter-btn active" data-filter="all">All</button>
                             <button class="filter-btn" data-filter="pending">Pending</button>
                             <button class="filter-btn" data-filter="running">Running</button>
                             <button class="filter-btn" data-filter="completed">Completed</button>
                         </div>
-                        <button onclick="clearCompletedJobs()" class="btn-danger btn-small" style="flex: 0;">
+                        <button onclick="clearCompletedJobs()" class="btn-danger btn-small">
                             🗑️ Clear Completed
                         </button>
                     </div>

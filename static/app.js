@@ -170,22 +170,27 @@ function renderJobs() {
             
             <div class="job-details">
                 <div class="job-detail">
-                    <strong>Email:</strong> <span>${job.email}</span>
+                    <strong>Email</strong>
+                    <span>${job.email}</span>
                 </div>
                 <div class="job-detail">
-                    <strong>Phone:</strong> <span>${job.phone}</span>
+                    <strong>Phone</strong>
+                    <span>${job.phone}</span>
                 </div>
                 <div class="job-detail">
-                    <strong>Course:</strong> <span>${job.course}</span>
+                    <strong>Course</strong>
+                    <span>${job.course}</span>
                 </div>
                 <div class="job-detail">
-                    <strong>Players:</strong> <span>${job.players}</span>
+                    <strong>Players</strong>
+                    <span>${job.players}</span>
                 </div>
                 <div class="job-detail">
-                    <strong>Type:</strong> <span>${job.run_type === 'now' ? 'Immediate' : 'Scheduled'}</span>
+                    <strong>Type</strong>
+                    <span>${job.run_type === 'now' ? 'Immediate' : 'Scheduled'}</span>
                 </div>
                 <div class="job-detail">
-                    <strong>${job.run_type === 'now' ? 'Created' : 'Scheduled'}:</strong> 
+                    <strong>${job.run_type === 'now' ? 'Created' : 'Scheduled'}</strong>
                     <span>${formatDateTime(job.run_type === 'now' ? job.created_at : job.schedule_datetime)}</span>
                 </div>
             </div>
