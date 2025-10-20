@@ -205,6 +205,14 @@ function renderJobs() {
                     </button>
                 </div>
             ` : ''}
+            
+            ${job.status === 'completed' || job.status === 'cancelled' ? `
+                <div class="job-actions">
+                    <button class="btn-danger btn-small" onclick="deleteJob(${job.id})">
+                        🗑️ Delete Booking
+                    </button>
+                </div>
+            ` : ''}
         </div>
     `).join('');
 }
@@ -307,27 +315,26 @@ function stopJobsAutoRefresh() {
     }
 }
 
-async function clearCompletedJobs() {
-    if (!confirm('Are you sure you want to clear all completed and cancelled jobs? This cannot be undone.')) {
+async function deleteJob(jobId) {
+    if (!confirm('Are you sure you want to delete this booking? This cannot be undone.')) {
         return;
     }
     
     try {
-        const response = await fetch('/api/jobs/clear-completed', {
-            method: 'POST'
+        const response = await fetch(`/api/jobs/${jobId}`, {
+            method: 'DELETE'
         });
         
         const result = await response.json();
         
         if (result.status === 'success') {
-            alert(result.message);
             loadJobs(); // Reload jobs list
         } else {
-            alert('Failed to clear jobs: ' + result.message);
+            alert('Failed to delete booking: ' + result.message);
         }
     } catch (error) {
-        console.error('Error clearing jobs:', error);
-        alert('Error clearing jobs');
+        console.error('Error deleting booking:', error);
+        alert('Error deleting booking');
     }
 }
 

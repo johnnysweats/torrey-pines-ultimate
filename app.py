@@ -228,24 +228,30 @@ def cancel_job(job_id):
         'message': 'Job cancelled successfully'
     })
 
-@app.route('/api/jobs/clear-completed', methods=['POST'])
-def clear_completed_jobs():
-    """Delete all completed and cancelled jobs"""
+@app.route('/api/jobs/<int:job_id>', methods=['DELETE'])
+def delete_job(job_id):
+    """Delete a specific job"""
     try:
         import sqlite3
         conn = sqlite3.connect(database.DB_NAME)
         cursor = conn.cursor()
         
-        # Delete completed and cancelled jobs
-        cursor.execute("DELETE FROM jobs WHERE status IN ('completed', 'cancelled')")
-        deleted_count = cursor.rowcount
+        # Delete the job
+        cursor.execute("DELETE FROM jobs WHERE id = ?", (job_id,))
+        
+        if cursor.rowcount == 0:
+            conn.close()
+            return jsonify({
+                'status': 'error',
+                'message': 'Job not found'
+            }), 404
         
         conn.commit()
         conn.close()
         
         return jsonify({
             'status': 'success',
-            'message': f'Cleared {deleted_count} completed/cancelled jobs'
+            'message': 'Booking deleted successfully'
         })
     except Exception as e:
         return jsonify({
