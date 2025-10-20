@@ -121,12 +121,13 @@
             font-family: inherit;
         }
         
-        input[type="datetime-local"] {
+        input[type="date"],
+        input[type="time"] {
             width: 100%;
             padding: 12px 16px;
             border: 2px solid #e0e0e0;
             border-radius: 10px;
-            font-size: 0.95em;
+            font-size: 1em;
             transition: all 0.3s ease;
             font-family: inherit;
         }
@@ -582,16 +583,16 @@
                 width: 100%;
             }
             
-            input[type="datetime-local"] {
-                font-size: 0.9em;
-                padding: 10px 12px;
+            input[type="date"],
+            input[type="time"] {
+                font-size: 0.95em;
             }
         }
         
         @media (max-width: 480px) {
-            input[type="datetime-local"] {
-                font-size: 0.85em;
-                padding: 10px;
+            input[type="date"],
+            input[type="time"] {
+                font-size: 0.9em;
             }
             .emoji {
                 font-size: 2.5em;
@@ -684,9 +685,15 @@
                     </div>
                     
                     <div class="datetime-group" id="datetimeGroup">
-                <div class="form-group">
-                            <label for="scheduleDateTime">Schedule Date & Time</label>
-                            <input type="datetime-local" id="scheduleDateTime" name="scheduleDateTime">
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label for="scheduleDate">Date</label>
+                                <input type="date" id="scheduleDate" name="scheduleDate">
+                            </div>
+                            <div class="form-group">
+                                <label for="scheduleTime">Time</label>
+                                <input type="time" id="scheduleTime" name="scheduleTime">
+                            </div>
                         </div>
                     </div>
                     

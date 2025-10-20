@@ -29,6 +29,9 @@ const datetimeInput = document.getElementById('scheduleDateTime');
 
 let selectedOption = 'now';
 
+const scheduleDateInput = document.getElementById('scheduleDate');
+const scheduleTimeInput = document.getElementById('scheduleTime');
+
 // Handle schedule option selection
 scheduleOptions.forEach(option => {
     option.addEventListener('click', () => {
@@ -44,12 +47,14 @@ scheduleOptions.forEach(option => {
         // Toggle datetime input and buttons
         if (selectedOption === 'later') {
             datetimeGroup.classList.add('show');
-            datetimeInput.required = true;
+            scheduleDateInput.required = true;
+            scheduleTimeInput.required = true;
             runNowBtn.style.display = 'none';
             scheduleLaterBtn.style.display = 'block';
         } else {
             datetimeGroup.classList.remove('show');
-            datetimeInput.required = false;
+            scheduleDateInput.required = false;
+            scheduleTimeInput.required = false;
             runNowBtn.style.display = 'block';
             scheduleLaterBtn.style.display = 'none';
         }
@@ -68,6 +73,13 @@ form.addEventListener('submit', async (e) => {
     activeButton.textContent = 'Submitting...';
     
     // Get form data
+    let scheduleDateTime = null;
+    if (selectedOption === 'later') {
+        const date = scheduleDateInput.value;
+        const time = scheduleTimeInput.value;
+        scheduleDateTime = `${date}T${time}`;
+    }
+    
     const formData = {
         firstName: document.getElementById('firstName').value,
         lastName: document.getElementById('lastName').value,
@@ -76,7 +88,7 @@ form.addEventListener('submit', async (e) => {
         course: document.getElementById('course').value,
         players: document.getElementById('players').value,
         runType: selectedOption,
-        scheduleDateTime: selectedOption === 'later' ? datetimeInput.value : null
+        scheduleDateTime: scheduleDateTime
     };
     
     try {
@@ -272,7 +284,9 @@ async function editJob(jobId) {
     if (job.schedule_datetime) {
         // Click schedule later option
         scheduleOptions[1].click();
-        document.getElementById('scheduleDateTime').value = job.schedule_datetime.slice(0, 16);
+        const [date, time] = job.schedule_datetime.slice(0, 16).split('T');
+        document.getElementById('scheduleDate').value = date;
+        document.getElementById('scheduleTime').value = time;
     }
     
     // Cancel the old job
