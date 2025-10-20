@@ -116,7 +116,7 @@ function showMessage(text, type) {
 }
 
 // Jobs Management
-let currentFilter = 'all';
+let currentFilter = 'pending';
 let allJobs = [];
 
 // Filter buttons
@@ -146,16 +146,13 @@ async function loadJobs() {
 function renderJobs() {
     const jobsList = document.getElementById('jobsList');
     
-    let filteredJobs = allJobs;
-    if (currentFilter !== 'all') {
-        filteredJobs = allJobs.filter(job => job.status === currentFilter);
-    }
+    let filteredJobs = allJobs.filter(job => job.status === currentFilter);
     
     if (filteredJobs.length === 0) {
         jobsList.innerHTML = `
             <div class="empty-state">
                 <div class="empty-state-icon">📭</div>
-                <p>No ${currentFilter === 'all' ? '' : currentFilter} jobs found</p>
+                <p>No ${currentFilter} jobs found</p>
             </div>
         `;
         return;
