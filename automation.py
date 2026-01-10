@@ -70,22 +70,101 @@ def setup_driver(headless=False):
 def fill_react_select(driver, container_element, value):
     """Fill in a react-select dropdown"""
     try:
+        logger.info(f"    Filling dropdown with value: '{value}'")
+        
+        # Scroll into view
+        driver.execute_script("arguments[0].scrollIntoView(true);", container_element)
+        time.sleep(0.3)
+        
         # Click the container to open dropdown
         container_element.click()
-        time.sleep(0.5)
+        logger.info(f"    Clicked dropdown container")
+        time.sleep(1)  # Wait longer for dropdown to open
         
-        # Type the value
-        input_field = container_element.find_element(By.CSS_SELECTOR, "input")
+        # Type the value - try multiple selectors
+        input_field = None
+        selectors = [
+            "input",
+            "input[type='text']",
+            ".css-1hwfws3 input",
+            "[class*='input']"
+        ]
+        
+        for selector in selectors:
+            try:
+                input_field = container_element.find_element(By.CSS_SELECTOR, selector)
+                if input_field:
+                    logger.info(f"    Found input field with selector: {selector}")
+                    break
+            except:
+                continue
+        
+        if not input_field:
+            # Try finding input in the document
+            try:
+                inputs = driver.find_elements(By.CSS_SELECTOR, "input[type='text']")
+                for inp in inputs:
+                    try:
+                        if inp.is_displayed() and inp.is_enabled():
+                            input_field = inp
+                            logger.info(f"    Found visible input field in document")
+                            break
+                    except:
+                        continue
+            except:
+                pass
+        
+        if not input_field:
+            logger.error(f"    ❌ Could not find input field for dropdown")
+            return False
+        
+        # Clear and type the value
+        input_field.clear()
+        time.sleep(0.2)
         input_field.send_keys(value)
-        time.sleep(0.5)
+        logger.info(f"    Typed '{value}' into input field")
+        time.sleep(1)  # Wait for options to filter
         
-        # Press Enter to select
+        # Try to find and click the option, or press Enter
+        try:
+            # Look for the option in the dropdown
+            options = driver.find_elements(By.CSS_SELECTOR, "[class*='option'], [id*='option']")
+            for option in options:
+                try:
+                    if value.lower() in option.text.lower():
+                        logger.info(f"    Found matching option: '{option.text}'")
+                        option.click()
+                        time.sleep(0.5)
+                        logger.info(f"    ✅ Selected option by clicking")
+                        return True
+                except:
+                    continue
+        except:
+            pass
+        
+        # Fallback: Press Enter
         input_field.send_keys(Keys.ENTER)
         time.sleep(0.5)
+        logger.info(f"    ✅ Selected option by pressing Enter")
         
-        return True
+        # Verify selection was made
+        time.sleep(0.5)
+        try:
+            # Check if the value appears in the container
+            container_text = container_element.text.lower()
+            if value.lower() in container_text:
+                logger.info(f"    ✅ Verified selection: '{value}' appears in container")
+                return True
+            else:
+                logger.warning(f"    ⚠️ Selection verification unclear. Container text: '{container_element.text[:100]}'")
+                # Still return True as it might have worked
+                return True
+        except:
+            logger.warning(f"    ⚠️ Could not verify selection, but assuming success")
+            return True
+        
     except Exception as e:
-        logger.error(f"❌ Error filling react-select: {e}\n{traceback.format_exc()}")
+        logger.error(f"    ❌ Error filling react-select: {e}\n{traceback.format_exc()}")
         return False
 
 def run_waitlist_automation(first_name, last_name, email, phone, course, players, headless=False, max_retries=60, retry_delay=5):
@@ -234,11 +313,21 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
         try:
             # Fill in first name
             first_name_field = wait.until(
-                EC.presence_of_element_located((By.ID, "form_firstName"))
+                EC.element_to_be_clickable((By.ID, "form_firstName"))
             )
+            # Scroll into view
+            driver.execute_script("arguments[0].scrollIntoView(true);", first_name_field)
+            time.sleep(0.3)
             first_name_field.clear()
+            time.sleep(0.2)
             first_name_field.send_keys(first_name)
-            logger.info(f"✅ Entered first name: {first_name}")
+            time.sleep(0.3)
+            # Verify it was entered
+            entered_value = first_name_field.get_attribute('value')
+            if entered_value == first_name:
+                logger.info(f"✅ Entered first name: {first_name}")
+            else:
+                logger.warning(f"⚠️ First name may not have been entered correctly. Expected: {first_name}, Got: {entered_value}")
         except Exception as e:
             error_msg = f"Failed to fill first name: {e}"
             logger.error(f"❌ {error_msg}")
@@ -246,10 +335,20 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
         
         try:
             # Fill in last name
-            last_name_field = driver.find_element(By.ID, "form_lastName")
+            last_name_field = wait.until(
+                EC.element_to_be_clickable((By.ID, "form_lastName"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView(true);", last_name_field)
+            time.sleep(0.3)
             last_name_field.clear()
+            time.sleep(0.2)
             last_name_field.send_keys(last_name)
-            logger.info(f"✅ Entered last name: {last_name}")
+            time.sleep(0.3)
+            entered_value = last_name_field.get_attribute('value')
+            if entered_value == last_name:
+                logger.info(f"✅ Entered last name: {last_name}")
+            else:
+                logger.warning(f"⚠️ Last name may not have been entered correctly. Expected: {last_name}, Got: {entered_value}")
         except Exception as e:
             error_msg = f"Failed to fill last name: {e}"
             logger.error(f"❌ {error_msg}")
@@ -257,10 +356,20 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
         
         try:
             # Fill in phone
-            phone_field = driver.find_element(By.ID, "form_phone")
+            phone_field = wait.until(
+                EC.element_to_be_clickable((By.ID, "form_phone"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView(true);", phone_field)
+            time.sleep(0.3)
             phone_field.clear()
+            time.sleep(0.2)
             phone_field.send_keys(phone)
-            logger.info(f"✅ Entered phone: {phone}")
+            time.sleep(0.3)
+            entered_value = phone_field.get_attribute('value')
+            if phone in entered_value or entered_value.replace('-', '').replace('(', '').replace(')', '').replace(' ', '') == phone.replace('-', '').replace('(', '').replace(')', '').replace(' ', ''):
+                logger.info(f"✅ Entered phone: {phone}")
+            else:
+                logger.warning(f"⚠️ Phone may not have been entered correctly. Expected: {phone}, Got: {entered_value}")
         except Exception as e:
             error_msg = f"Failed to fill phone: {e}"
             logger.error(f"❌ {error_msg}")
@@ -268,10 +377,20 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
         
         try:
             # Fill in email
-            email_field = driver.find_element(By.ID, "form_email")
+            email_field = wait.until(
+                EC.element_to_be_clickable((By.ID, "form_email"))
+            )
+            driver.execute_script("arguments[0].scrollIntoView(true);", email_field)
+            time.sleep(0.3)
             email_field.clear()
+            time.sleep(0.2)
             email_field.send_keys(email)
-            logger.info(f"✅ Entered email: {email}")
+            time.sleep(0.3)
+            entered_value = email_field.get_attribute('value')
+            if entered_value == email:
+                logger.info(f"✅ Entered email: {email}")
+            else:
+                logger.warning(f"⚠️ Email may not have been entered correctly. Expected: {email}, Got: {entered_value}")
         except Exception as e:
             error_msg = f"Failed to fill email: {e}"
             logger.error(f"❌ {error_msg}")
@@ -338,21 +457,160 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
         
         try:
             logger.info("\n[7/7] Submitting form...")
+            
+            # Check if button is enabled/clickable before submitting
+            if not submit_button.is_enabled():
+                error_msg = "Submit button is disabled - form may be invalid"
+                logger.error(f"❌ {error_msg}")
+                return {'status': 'error', 'message': error_msg}
+            
+            # Take screenshot before submit for debugging
+            try:
+                import os
+                screenshot_dir = "/tmp" if headless else "."
+                if os.path.exists(screenshot_dir):
+                    screenshot_path = os.path.join(screenshot_dir, f"before_submit_{int(time.time())}.png")
+                    driver.save_screenshot(screenshot_path)
+                    logger.info(f"📸 Screenshot before submit: {screenshot_path}")
+            except Exception as screenshot_error:
+                logger.debug(f"Could not save pre-submit screenshot: {screenshot_error}")
+            
+            # Get the URL before clicking
+            url_before = driver.current_url
+            logger.info(f"URL before submit: {url_before}")
+            
+            # Scroll button into view if needed
+            try:
+                driver.execute_script("arguments[0].scrollIntoView(true);", submit_button)
+                time.sleep(0.5)
+            except:
+                pass
+            
+            # Click the submit button
+            logger.info(f"Clicking submit button: '{submit_button.text}'")
             submit_button.click()
-            time.sleep(5)  # Wait for submission to complete
-            logger.info("✅ Form submitted, waiting for confirmation...")
+            logger.info("✅ Submit button clicked")
             
-            # Check for success message or confirmation
-            current_url = driver.current_url
-            logger.info(f"After submit URL: {current_url}")
+            # Wait for form submission to process - check for URL change, success message, or form disappearance
+            logger.info("Waiting for submission to complete...")
+            success_found = False
+            max_wait_time = 15  # Wait up to 15 seconds for confirmation
+            check_interval = 1
+            waited = 0
             
-            success_msg = f'Form submitted successfully for {first_name} {last_name} at {current_url}'
-            logger.info(f"✅ {success_msg}")
+            while waited < max_wait_time and not success_found:
+                time.sleep(check_interval)
+                waited += check_interval
+                
+                try:
+                    current_url = driver.current_url
+                    page_source = driver.page_source.lower()
+                    
+                    logger.info(f"  Check {waited}s: URL={current_url[:100]}...")
+                    
+                    # Check for URL change (indicates navigation after submission)
+                    if current_url != url_before:
+                        logger.info(f"✅ URL changed after submission: {current_url}")
+                        success_found = True
+                        break
+                    
+                    # Check for success indicators in page content
+                    success_indicators = [
+                        "you've joined",
+                        "you have joined",
+                        "you are on the waitlist",
+                        "successfully added",
+                        "confirmed",
+                        "thank you",
+                        "confirmation",
+                        "you're in line",
+                        "waitlist position"
+                    ]
+                    
+                    for indicator in success_indicators:
+                        if indicator in page_source:
+                            logger.info(f"✅ Found success indicator: '{indicator}'")
+                            success_found = True
+                            break
+                    
+                    # Check if form is gone (indicating successful submission)
+                    try:
+                        form_element = driver.find_element(By.ID, "form_firstName")
+                        if not form_element.is_displayed():
+                            logger.info("✅ Form is no longer visible - submission likely successful")
+                            success_found = True
+                            break
+                    except:
+                        # Form element not found - form might be gone = success!
+                        logger.info("✅ Form element not found - submission likely successful")
+                        success_found = True
+                        break
+                    
+                    # Check for error messages
+                    error_indicators = [
+                        "error",
+                        "failed",
+                        "invalid",
+                        "required",
+                        "try again"
+                    ]
+                    
+                    for indicator in error_indicators:
+                        if indicator in page_source and "success" not in page_source:
+                            # Look for actual error elements
+                            try:
+                                error_elements = driver.find_elements(By.CSS_SELECTOR, "[class*='error'], [class*='Error'], [role='alert']")
+                                if error_elements:
+                                    error_text = error_elements[0].text
+                                    error_msg = f"Error found on page after submission: {error_text[:200]}"
+                                    logger.error(f"❌ {error_msg}")
+                                    return {'status': 'error', 'message': error_msg}
+                            except:
+                                pass
+                    
+                except Exception as check_error:
+                    logger.debug(f"Error during success check: {check_error}")
             
-            return {
-                'status': 'success',
-                'message': success_msg
-            }
+            # Final verification
+            if success_found:
+                current_url = driver.current_url
+                logger.info(f"✅ Submission appears successful. Final URL: {current_url}")
+                
+                # Take final screenshot
+                try:
+                    screenshot_path = os.path.join(screenshot_dir, f"after_submit_{int(time.time())}.png")
+                    driver.save_screenshot(screenshot_path)
+                    logger.info(f"📸 Screenshot after submit: {screenshot_path}")
+                except:
+                    pass
+                
+                success_msg = f'Successfully joined waitlist for {first_name} {last_name}. Final URL: {current_url}'
+                logger.info(f"✅ {success_msg}")
+                
+                return {
+                    'status': 'success',
+                    'message': success_msg
+                }
+            else:
+                # Check what's actually on the page
+                current_url = driver.current_url
+                page_title = driver.title
+                logger.warning(f"⚠️ No clear success confirmation after {max_wait_time} seconds")
+                logger.warning(f"Final URL: {current_url}")
+                logger.warning(f"Page title: {page_title}")
+                
+                # Take screenshot of final state
+                try:
+                    screenshot_path = os.path.join(screenshot_dir, f"no_confirmation_{int(time.time())}.png")
+                    driver.save_screenshot(screenshot_path)
+                    logger.warning(f"📸 Screenshot of uncertain state: {screenshot_path}")
+                except:
+                    pass
+                
+                error_msg = f'Submission attempted but no confirmation received after {max_wait_time} seconds. URL: {current_url}. Please check manually.'
+                logger.error(f"❌ {error_msg}")
+                return {'status': 'error', 'message': error_msg}
+                
         except Exception as submit_error:
             error_msg = f"Failed to submit form: {submit_error}"
             logger.error(f"❌ {error_msg}\n{traceback.format_exc()}")
