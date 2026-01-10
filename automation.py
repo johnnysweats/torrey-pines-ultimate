@@ -177,6 +177,29 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
             except Exception as e:
                 attempt += 1
                 if attempt >= max_attempts:
+                    # Save page source for debugging before failing
+                    try:
+                        import os
+                        debug_dir = "/tmp" if headless else "."
+                        page_source_file = os.path.join(debug_dir, f"debug_page_source_{int(time.time())}.html")
+                        with open(page_source_file, 'w', encoding='utf-8') as f:
+                            f.write(driver.page_source)
+                        logger.error(f"  📄 Saved page source to {page_source_file} for debugging")
+                        
+                        # Log what buttons we actually found
+                        try:
+                            all_buttons = driver.find_elements(By.TAG_NAME, "button")
+                            logger.error(f"  Found {len(all_buttons)} buttons on page:")
+                            for i, btn in enumerate(all_buttons[:10]):  # First 10 buttons
+                                try:
+                                    logger.error(f"    Button {i+1}: text='{btn.text[:50]}', class='{btn.get_attribute('class')[:50]}'")
+                                except:
+                                    pass
+                        except:
+                            pass
+                    except:
+                        pass
+                    
                     error_msg = "Max attempts reached. Exiting."
                     logger.error(f"  ❌ {error_msg}")
                     raise Exception(error_msg)
