@@ -10,6 +10,11 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
 import time
+import logging
+import traceback
+
+# Set up logging
+logger = logging.getLogger(__name__)
 
 # Torrey Pines coordinates
 LATITUDE = 32.9045
@@ -54,10 +59,12 @@ def setup_driver(headless=False):
         from selenium.webdriver.common.selenium_manager import SeleniumManager
         
         driver = webdriver.Chrome(options=chrome_options)
-        print(f"Chrome started successfully. Version: {driver.capabilities['browserVersion']}")
+        logger.info(f"✅ Chrome started successfully. Version: {driver.capabilities.get('browserVersion', 'Unknown')}")
+        logger.info(f"ChromeDriver version: {driver.capabilities.get('chrome', {}).get('chromedriverVersion', 'Unknown')}")
         return driver
     except Exception as e:
-        print(f"Failed to start Chrome: {e}")
+        error_msg = f"❌ Failed to start Chrome: {e}\n{traceback.format_exc()}"
+        logger.error(error_msg)
         raise
 
 def fill_react_select(driver, container_element, value):
@@ -100,37 +107,42 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
         dict: Result with status and message
     """
     
-    print("=" * 60)
-    print("TORREY PINES WAITLIST AUTOMATION")
-    print("=" * 60)
-    print(f"Name: {first_name} {last_name}")
-    print(f"Email: {email}")
-    print(f"Phone: {phone}")
-    print(f"Course: {course}")
-    print(f"Players: {players}")
-    print("=" * 60)
+    logger.info("=" * 60)
+    logger.info("TORREY PINES WAITLIST AUTOMATION")
+    logger.info("=" * 60)
+    logger.info(f"Name: {first_name} {last_name}")
+    logger.info(f"Email: {email}")
+    logger.info(f"Phone: {phone}")
+    logger.info(f"Course: {course}")
+    logger.info(f"Players: {players}")
+    logger.info(f"Headless: {headless}")
+    logger.info(f"Max retries: {max_retries}, Retry delay: {retry_delay}s")
+    logger.info("=" * 60)
     
     driver = None
     
     try:
-        print("\n[1/7] Setting up browser...")
+        logger.info("\n[1/7] Setting up browser...")
         driver = setup_driver(headless=headless)
         
         # Override geolocation using Chrome DevTools Protocol
-        driver.execute_cdp_cmd("Emulation.setGeolocationOverride", {
-            "latitude": LATITUDE,
-            "longitude": LONGITUDE,
-            "accuracy": 100
-        })
-        print(f"✓ Geolocation set to: {LATITUDE}, {LONGITUDE}")
+        try:
+            driver.execute_cdp_cmd("Emulation.setGeolocationOverride", {
+                "latitude": LATITUDE,
+                "longitude": LONGITUDE,
+                "accuracy": 100
+            })
+            logger.info(f"✅ Geolocation set to: {LATITUDE}, {LONGITUDE}")
+        except Exception as geo_error:
+            logger.warning(f"⚠️ Failed to set geolocation: {geo_error} - continuing anyway")
         
-        print(f"\n[2/7] Navigating to {WAITLIST_URL}...")
+        logger.info(f"\n[2/7] Navigating to {WAITLIST_URL}...")
         
         # RETRY LOGIC - Keep trying until we find the Join waitlist button!
         join_button = None
         attempt = 0
         
-        print(f"\n[3/7] Looking for 'Join waitlist' button (will retry up to {max_retries} times)...")
+        logger.info(f"\n[3/7] Looking for 'Join waitlist' button (will retry up to {max_retries} times, {retry_delay}s between attempts)...")
         
         while attempt < max_retries and not join_button:
             attempt += 1
@@ -140,19 +152,21 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
                 time.sleep(3)
                 
                 current_url = driver.current_url
-                print(f"\nAttempt {attempt}/{max_retries}")
-                print(f"  URL: {current_url}")
+                logger.info(f"\n  Attempt {attempt}/{max_retries}")
+                logger.info(f"  Current URL: {current_url}")
                 
                 # Check if we're on the closed page
                 if "/closed" in current_url:
-                    print(f"  Status: Waitlist closed - will retry in {retry_delay} seconds...")
+                    logger.warning(f"  ⚠️ Waitlist closed - will retry in {retry_delay} seconds...")
                     if attempt < max_retries:
                         time.sleep(retry_delay)
                         continue
                     else:
+                        error_msg = f'Waitlist remained closed after {max_retries} attempts over {max_retries * retry_delay} seconds.'
+                        logger.error(f"  ❌ {error_msg}")
                         return {
                             'status': 'error',
-                            'message': f'Waitlist remained closed after {max_retries} attempts over {max_retries * retry_delay} seconds.'
+                            'message': error_msg
                         }
                 
                 # Look for the Join waitlist button
@@ -160,159 +174,208 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
                 wait.until(EC.presence_of_element_located((By.TAG_NAME, "button")))
                 
                 buttons = driver.find_elements(By.TAG_NAME, "button")
-                print(f"  Found {len(buttons)} buttons")
+                logger.info(f"  Found {len(buttons)} buttons on page")
                 
                 for btn in buttons:
-                    btn_text = btn.text.lower()
-                    if "join" in btn_text and "waitlist" in btn_text:
-                        join_button = btn
-                        print(f"  ✓ FOUND IT! Button text: '{btn.text}'")
-                        break
+                    try:
+                        btn_text = btn.text.lower()
+                        if "join" in btn_text and "waitlist" in btn_text:
+                            join_button = btn
+                            logger.info(f"  ✅ FOUND IT! Button text: '{btn.text}'")
+                            break
+                    except Exception as btn_error:
+                        logger.debug(f"  Could not read button text: {btn_error}")
                 
                 if not join_button:
-                    print(f"  'Join waitlist' button not found yet")
+                    logger.info(f"  'Join waitlist' button not found yet")
                     if attempt < max_retries:
-                        print(f"  Waiting {retry_delay} seconds before retry...")
+                        logger.info(f"  Waiting {retry_delay} seconds before retry...")
                         time.sleep(retry_delay)
                     
             except Exception as e:
-                print(f"  Error on attempt {attempt}: {e}")
+                logger.error(f"  ❌ Error on attempt {attempt}: {e}\n{traceback.format_exc()}")
                 if attempt < max_retries:
-                    print(f"  Retrying in {retry_delay} seconds...")
+                    logger.info(f"  Retrying in {retry_delay} seconds...")
                     time.sleep(retry_delay)
+                else:
+                    raise  # Re-raise on final attempt
         
         # After all retries, check if we found the button
         if not join_button:
-            screenshot_path = f"screenshot_no_button_{int(time.time())}.png"
-            driver.save_screenshot(screenshot_path)
-            print(f"Screenshot saved: {screenshot_path}")
+            try:
+                screenshot_path = f"screenshot_no_button_{int(time.time())}.png"
+                driver.save_screenshot(screenshot_path)
+                logger.error(f"❌ Screenshot saved: {screenshot_path}")
+            except Exception as screenshot_error:
+                logger.error(f"❌ Failed to save screenshot: {screenshot_error}")
             
+            error_msg = f'Join waitlist button not found after {max_retries} attempts ({max_retries * retry_delay / 60:.1f} minutes). Waitlist may still be closed.'
+            logger.error(f"❌ {error_msg}")
             return {
                 'status': 'error',
-                'message': f'Join waitlist button not found after {max_retries} attempts ({max_retries * retry_delay / 60:.1f} minutes). Waitlist may still be closed.',
-                'screenshot': screenshot_path
+                'message': error_msg
             }
         
-        print("✓ Found button, clicking...")
-        join_button.click()
-        time.sleep(3)
+        logger.info("✅ Found button, clicking...")
+        try:
+            join_button.click()
+            time.sleep(3)
+            logger.info("✅ Successfully clicked join waitlist button")
+        except Exception as click_error:
+            error_msg = f"Failed to click join waitlist button: {click_error}"
+            logger.error(f"❌ {error_msg}")
+            return {
+                'status': 'error',
+                'message': error_msg
+            }
         
-        print(f"\n[4/7] Filling out form...")
+        logger.info(f"\n[4/7] Filling out form...")
         
-        # Fill in first name
-        first_name_field = wait.until(
-            EC.presence_of_element_located((By.ID, "form_firstName"))
-        )
-        first_name_field.clear()
-        first_name_field.send_keys(first_name)
-        print(f"✓ Entered first name: {first_name}")
+        try:
+            # Fill in first name
+            first_name_field = wait.until(
+                EC.presence_of_element_located((By.ID, "form_firstName"))
+            )
+            first_name_field.clear()
+            first_name_field.send_keys(first_name)
+            logger.info(f"✅ Entered first name: {first_name}")
+        except Exception as e:
+            error_msg = f"Failed to fill first name: {e}"
+            logger.error(f"❌ {error_msg}")
+            return {'status': 'error', 'message': error_msg}
         
-        # Fill in last name
-        last_name_field = driver.find_element(By.ID, "form_lastName")
-        last_name_field.clear()
-        last_name_field.send_keys(last_name)
-        print(f"✓ Entered last name: {last_name}")
+        try:
+            # Fill in last name
+            last_name_field = driver.find_element(By.ID, "form_lastName")
+            last_name_field.clear()
+            last_name_field.send_keys(last_name)
+            logger.info(f"✅ Entered last name: {last_name}")
+        except Exception as e:
+            error_msg = f"Failed to fill last name: {e}"
+            logger.error(f"❌ {error_msg}")
+            return {'status': 'error', 'message': error_msg}
         
-        # Fill in phone
-        phone_field = driver.find_element(By.ID, "form_phone")
-        phone_field.clear()
-        phone_field.send_keys(phone)
-        print(f"✓ Entered phone: {phone}")
+        try:
+            # Fill in phone
+            phone_field = driver.find_element(By.ID, "form_phone")
+            phone_field.clear()
+            phone_field.send_keys(phone)
+            logger.info(f"✅ Entered phone: {phone}")
+        except Exception as e:
+            error_msg = f"Failed to fill phone: {e}"
+            logger.error(f"❌ {error_msg}")
+            return {'status': 'error', 'message': error_msg}
         
-        # Fill in email
-        email_field = driver.find_element(By.ID, "form_email")
-        email_field.clear()
-        email_field.send_keys(email)
-        print(f"✓ Entered email: {email}")
+        try:
+            # Fill in email
+            email_field = driver.find_element(By.ID, "form_email")
+            email_field.clear()
+            email_field.send_keys(email)
+            logger.info(f"✅ Entered email: {email}")
+        except Exception as e:
+            error_msg = f"Failed to fill email: {e}"
+            logger.error(f"❌ {error_msg}")
+            return {'status': 'error', 'message': error_msg}
         
-        print(f"\n[5/7] Selecting course and players...")
+        logger.info(f"\n[5/7] Selecting course and players...")
         
         # Find all react-select containers
-        react_selects = driver.find_elements(By.CSS_SELECTOR, ".css-1s2u09g-control, [class*='select__control']")
+        try:
+            react_selects = driver.find_elements(By.CSS_SELECTOR, ".css-1s2u09g-control, [class*='select__control']")
+            logger.info(f"Found {len(react_selects)} react-select dropdowns")
+        except Exception as e:
+            error_msg = f"Failed to find dropdown containers: {e}"
+            logger.error(f"❌ {error_msg}")
+            return {'status': 'error', 'message': error_msg}
         
         if len(react_selects) >= 2:
             # First dropdown - likely Course
-            print(f"  Selecting course: {course}")
+            logger.info(f"  Selecting course: {course}")
             if fill_react_select(driver, react_selects[0], course):
-                print(f"  ✓ Selected course: {course}")
+                logger.info(f"  ✅ Selected course: {course}")
             else:
-                print(f"  ⚠ Could not select course")
+                logger.warning(f"  ⚠️ Could not select course: {course}")
+                return {'status': 'error', 'message': f'Failed to select course: {course}'}
             
             # Second dropdown - likely Players
-            print(f"  Selecting players: {players}")
+            logger.info(f"  Selecting players: {players}")
             if fill_react_select(driver, react_selects[1], str(players)):
-                print(f"  ✓ Selected players: {players}")
+                logger.info(f"  ✅ Selected players: {players}")
             else:
-                print(f"  ⚠ Could not select players")
+                logger.warning(f"  ⚠️ Could not select players: {players}")
+                return {'status': 'error', 'message': f'Failed to select players: {players}'}
         else:
-            print(f"  ⚠ Warning: Found {len(react_selects)} dropdowns (expected 2)")
+            error_msg = f"Found {len(react_selects)} dropdowns (expected 2)"
+            logger.error(f"  ❌ {error_msg}")
+            return {'status': 'error', 'message': error_msg}
         
-        print(f"\n[6/7] Looking for submit button...")
-        
-        # Take a screenshot before submitting
-        screenshot_path = f"screenshot_before_submit_{int(time.time())}.png"
-        driver.save_screenshot(screenshot_path)
-        print(f"Screenshot saved: {screenshot_path}")
+        logger.info(f"\n[6/7] Looking for submit button...")
         
         # Find submit button
         submit_button = None
-        buttons = driver.find_elements(By.TAG_NAME, "button")
-        
-        for btn in buttons:
-            btn_text = btn.text.lower()
-            if "submit" in btn_text or "join" in btn_text or "add" in btn_text:
-                submit_button = btn
-                break
-        
-        if submit_button:
-            print(f"✓ Found submit button: '{submit_button.text}'")
+        try:
+            buttons = driver.find_elements(By.TAG_NAME, "button")
+            logger.info(f"Found {len(buttons)} buttons on form page")
             
-            print("\n[7/7] Submitting form...")
+            for btn in buttons:
+                try:
+                    btn_text = btn.text.lower()
+                    if "submit" in btn_text or "join" in btn_text or "add" in btn_text:
+                        submit_button = btn
+                        logger.info(f"✅ Found submit button: '{btn.text}'")
+                        break
+                except Exception as btn_error:
+                    logger.debug(f"Could not read button text: {btn_error}")
+        except Exception as e:
+            error_msg = f"Failed to find submit button: {e}"
+            logger.error(f"❌ {error_msg}")
+            return {'status': 'error', 'message': error_msg}
+        
+        if not submit_button:
+            error_msg = 'Submit button not found on form'
+            logger.error(f"❌ {error_msg}")
+            return {'status': 'error', 'message': error_msg}
+        
+        try:
+            logger.info("\n[7/7] Submitting form...")
             submit_button.click()
             time.sleep(5)  # Wait for submission to complete
-            
-            # Take screenshot after submission
-            screenshot_after = f"screenshot_after_submit_{int(time.time())}.png"
-            driver.save_screenshot(screenshot_after)
-            print(f"Screenshot saved: {screenshot_after}")
+            logger.info("✅ Form submitted, waiting for confirmation...")
             
             # Check for success message or confirmation
             current_url = driver.current_url
-            print(f"After submit URL: {current_url}")
+            logger.info(f"After submit URL: {current_url}")
             
-            if not headless:
-                print("\nBrowser will stay open for 10 seconds to see result...")
-                time.sleep(10)
+            success_msg = f'Form submitted successfully for {first_name} {last_name} at {current_url}'
+            logger.info(f"✅ {success_msg}")
             
             return {
                 'status': 'success',
-                'message': f'Form filled successfully for {first_name} {last_name}',
-                'screenshot': screenshot_path
+                'message': success_msg
             }
-        else:
-            return {
-                'status': 'error',
-                'message': 'Submit button not found'
-            }
+        except Exception as submit_error:
+            error_msg = f"Failed to submit form: {submit_error}"
+            logger.error(f"❌ {error_msg}\n{traceback.format_exc()}")
+            return {'status': 'error', 'message': error_msg}
         
     except Exception as e:
-        print(f"\n❌ ERROR: {e}")
-        import traceback
-        traceback.print_exc()
-        
-        if driver and not headless:
-            print("\nBrowser will stay open for 30 seconds for debugging...")
-            time.sleep(30)
+        error_msg = f"❌ CRITICAL ERROR in automation: {e}"
+        error_trace = traceback.format_exc()
+        logger.error(f"\n{error_msg}\n{error_trace}")
         
         return {
             'status': 'error',
-            'message': str(e)
+            'message': f'Automation failed: {str(e)}'
         }
     
     finally:
         if driver:
-            print("\nClosing browser...")
-            driver.quit()
+            try:
+                logger.info("\n🔒 Closing browser...")
+                driver.quit()
+                logger.info("✅ Browser closed successfully")
+            except Exception as quit_error:
+                logger.error(f"❌ Error closing browser: {quit_error}")
 
 if __name__ == "__main__":
     # Test with sample data
