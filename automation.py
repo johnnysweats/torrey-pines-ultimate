@@ -85,7 +85,7 @@ def fill_react_select(driver, container_element, value):
         
         return True
     except Exception as e:
-        print(f"Error filling react-select: {e}")
+        logger.error(f"❌ Error filling react-select: {e}\n{traceback.format_exc()}")
         return False
 
 def run_waitlist_automation(first_name, last_name, email, phone, course, players, headless=False, max_retries=60, retry_delay=5):
