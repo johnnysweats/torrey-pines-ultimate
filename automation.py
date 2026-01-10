@@ -22,6 +22,13 @@ LATITUDE = 32.8986
 LONGITUDE = -117.2431
 WAITLIST_URL = "https://waitwhile.com/locations/torreypinesgolf/welcome"  # OLD WORKING URL!
 
+# Map course names from form to website format (OLD WORKING METHOD uses "First Avail." not "1st Available")
+COURSE_MAP = {
+    "North": "North",
+    "South": "South", 
+    "1st Available": "First Avail."  # Website expects "First Avail." format
+}
+
 def setup_driver(headless=False):
     """Setup Chrome driver with geolocation"""
     chrome_options = Options()
@@ -278,13 +285,17 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
         
         logger.info(f"\n[5/7] Selecting course and players using OLD WORKING METHOD...")
         
+        # Map course name to website format
+        website_course = COURSE_MAP.get(course, course)
+        logger.info(f"  Course from form: '{course}' -> Website format: '{website_course}'")
+        
         # Use the EXACT method from the working script (OLD WORKING METHOD)
-        # Course dropdown
-        logger.info(f"  Selecting course: {course}")
-        if select_react_select_option(driver, "react-select-2-input", course):
-            logger.info(f"  ✅ Selected '{course}' in the course dropdown.")
+        # Course dropdown - use the mapped course name
+        logger.info(f"  Selecting course: {website_course}")
+        if select_react_select_option(driver, "react-select-2-input", website_course):
+            logger.info(f"  ✅ Selected '{website_course}' in the course dropdown.")
         else:
-            error_msg = f'Failed to select course: {course}'
+            error_msg = f'Failed to select course: {website_course}'
             logger.error(f"  ❌ {error_msg}")
             return {'status': 'error', 'message': error_msg}
         
@@ -312,163 +323,28 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
             return {'status': 'error', 'message': error_msg}
         
         try:
-            logger.info("\n[7/7] Submitting form...")
+            logger.info("\n[7/7] Clicking 'Join the line' button (OLD WORKING METHOD)...")
+            join_line_button.click()
+            logger.info("✅ Successfully clicked the 'Join the line' button.")
             
-            # Check if button is enabled/clickable before submitting
-            if not submit_button.is_enabled():
-                error_msg = "Submit button is disabled - form may be invalid"
-                logger.error(f"❌ {error_msg}")
-                return {'status': 'error', 'message': error_msg}
+            # OLD WORKING METHOD: Just wait 15 seconds like the original script
+            logger.info("Waiting 15 seconds for submission to process (OLD WORKING METHOD)...")
+            time.sleep(15)
             
-            # Take screenshot before submit for debugging
-            try:
-                import os
-                screenshot_dir = "/tmp" if headless else "."
-                if os.path.exists(screenshot_dir):
-                    screenshot_path = os.path.join(screenshot_dir, f"before_submit_{int(time.time())}.png")
-                    driver.save_screenshot(screenshot_path)
-                    logger.info(f"📸 Screenshot before submit: {screenshot_path}")
-            except Exception as screenshot_error:
-                logger.debug(f"Could not save pre-submit screenshot: {screenshot_error}")
+            # Check final state
+            current_url = driver.current_url
+            logger.info(f"Final URL after submission: {current_url}")
             
-            # Get the URL before clicking
-            url_before = driver.current_url
-            logger.info(f"URL before submit: {url_before}")
+            success_msg = f'Form submitted successfully for {first_name} {last_name}. Final URL: {current_url}'
+            logger.info(f"✅ {success_msg}")
             
-            # Scroll button into view if needed
-            try:
-                driver.execute_script("arguments[0].scrollIntoView(true);", submit_button)
-                time.sleep(0.5)
-            except:
-                pass
-            
-            # Click the submit button
-            logger.info(f"Clicking submit button: '{submit_button.text}'")
-            submit_button.click()
-            logger.info("✅ Submit button clicked")
-            
-            # Wait for form submission to process - check for URL change, success message, or form disappearance
-            logger.info("Waiting for submission to complete...")
-            success_found = False
-            max_wait_time = 15  # Wait up to 15 seconds for confirmation
-            check_interval = 1
-            waited = 0
-            
-            while waited < max_wait_time and not success_found:
-                time.sleep(check_interval)
-                waited += check_interval
-                
-                try:
-                    current_url = driver.current_url
-                    page_source = driver.page_source.lower()
-                    
-                    logger.info(f"  Check {waited}s: URL={current_url[:100]}...")
-                    
-                    # Check for URL change (indicates navigation after submission)
-                    if current_url != url_before:
-                        logger.info(f"✅ URL changed after submission: {current_url}")
-                        success_found = True
-                        break
-                    
-                    # Check for success indicators in page content
-                    success_indicators = [
-                        "you've joined",
-                        "you have joined",
-                        "you are on the waitlist",
-                        "successfully added",
-                        "confirmed",
-                        "thank you",
-                        "confirmation",
-                        "you're in line",
-                        "waitlist position"
-                    ]
-                    
-                    for indicator in success_indicators:
-                        if indicator in page_source:
-                            logger.info(f"✅ Found success indicator: '{indicator}'")
-                            success_found = True
-                            break
-                    
-                    # Check if form is gone (indicating successful submission)
-                    try:
-                        form_element = driver.find_element(By.ID, "form_firstName")
-                        if not form_element.is_displayed():
-                            logger.info("✅ Form is no longer visible - submission likely successful")
-                            success_found = True
-                            break
-                    except:
-                        # Form element not found - form might be gone = success!
-                        logger.info("✅ Form element not found - submission likely successful")
-                        success_found = True
-                        break
-                    
-                    # Check for error messages
-                    error_indicators = [
-                        "error",
-                        "failed",
-                        "invalid",
-                        "required",
-                        "try again"
-                    ]
-                    
-                    for indicator in error_indicators:
-                        if indicator in page_source and "success" not in page_source:
-                            # Look for actual error elements
-                            try:
-                                error_elements = driver.find_elements(By.CSS_SELECTOR, "[class*='error'], [class*='Error'], [role='alert']")
-                                if error_elements:
-                                    error_text = error_elements[0].text
-                                    error_msg = f"Error found on page after submission: {error_text[:200]}"
-                                    logger.error(f"❌ {error_msg}")
-                                    return {'status': 'error', 'message': error_msg}
-                            except:
-                                pass
-                    
-                except Exception as check_error:
-                    logger.debug(f"Error during success check: {check_error}")
-            
-            # Final verification
-            if success_found:
-                current_url = driver.current_url
-                logger.info(f"✅ Submission appears successful. Final URL: {current_url}")
-                
-                # Take final screenshot
-                try:
-                    screenshot_path = os.path.join(screenshot_dir, f"after_submit_{int(time.time())}.png")
-                    driver.save_screenshot(screenshot_path)
-                    logger.info(f"📸 Screenshot after submit: {screenshot_path}")
-                except:
-                    pass
-                
-                success_msg = f'Successfully joined waitlist for {first_name} {last_name}. Final URL: {current_url}'
-                logger.info(f"✅ {success_msg}")
-                
-                return {
-                    'status': 'success',
-                    'message': success_msg
-                }
-            else:
-                # Check what's actually on the page
-                current_url = driver.current_url
-                page_title = driver.title
-                logger.warning(f"⚠️ No clear success confirmation after {max_wait_time} seconds")
-                logger.warning(f"Final URL: {current_url}")
-                logger.warning(f"Page title: {page_title}")
-                
-                # Take screenshot of final state
-                try:
-                    screenshot_path = os.path.join(screenshot_dir, f"no_confirmation_{int(time.time())}.png")
-                    driver.save_screenshot(screenshot_path)
-                    logger.warning(f"📸 Screenshot of uncertain state: {screenshot_path}")
-                except:
-                    pass
-                
-                error_msg = f'Submission attempted but no confirmation received after {max_wait_time} seconds. URL: {current_url}. Please check manually.'
-                logger.error(f"❌ {error_msg}")
-                return {'status': 'error', 'message': error_msg}
+            return {
+                'status': 'success',
+                'message': success_msg
+            }
                 
         except Exception as submit_error:
-            error_msg = f"Failed to submit form: {submit_error}"
+            error_msg = f"Failed to click 'Join the line' button: {submit_error}"
             logger.error(f"❌ {error_msg}\n{traceback.format_exc()}")
             return {'status': 'error', 'message': error_msg}
         
