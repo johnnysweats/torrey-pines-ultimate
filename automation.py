@@ -9,6 +9,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
+from datetime import datetime
 import time
 import logging
 import traceback
@@ -16,10 +17,10 @@ import traceback
 # Set up logging
 logger = logging.getLogger(__name__)
 
-# Torrey Pines coordinates
-LATITUDE = 32.9045
-LONGITUDE = -117.2454
-WAITLIST_URL = "https://waitwhile.com/locations/torreypinesgolf"
+# Torrey Pines coordinates (using the exact coordinates from working script)
+LATITUDE = 32.8986
+LONGITUDE = -117.2431
+WAITLIST_URL = "https://waitwhile.com/locations/torreypinesgolf/welcome"  # OLD WORKING URL!
 
 def setup_driver(headless=False):
     """Setup Chrome driver with geolocation"""
@@ -67,104 +68,35 @@ def setup_driver(headless=False):
         logger.error(error_msg)
         raise
 
-def fill_react_select(driver, container_element, value):
-    """Fill in a react-select dropdown"""
+def select_react_select_option(driver, input_id, option_text):
+    """
+    Fill in a react-select dropdown using the OLD WORKING METHOD
+    This matches the exact approach from waitlist.py that worked!
+    """
     try:
-        logger.info(f"    Filling dropdown with value: '{value}'")
+        logger.info(f"    Selecting '{option_text}' in dropdown with ID: {input_id}")
         
-        # Scroll into view
-        driver.execute_script("arguments[0].scrollIntoView(true);", container_element)
-        time.sleep(0.3)
-        
-        # Click the container to open dropdown
-        container_element.click()
-        logger.info(f"    Clicked dropdown container")
-        time.sleep(1)  # Wait longer for dropdown to open
-        
-        # Type the value - try multiple selectors
-        input_field = None
-        selectors = [
-            "input",
-            "input[type='text']",
-            ".css-1hwfws3 input",
-            "[class*='input']"
-        ]
-        
-        for selector in selectors:
-            try:
-                input_field = container_element.find_element(By.CSS_SELECTOR, selector)
-                if input_field:
-                    logger.info(f"    Found input field with selector: {selector}")
-                    break
-            except:
-                continue
-        
-        if not input_field:
-            # Try finding input in the document
-            try:
-                inputs = driver.find_elements(By.CSS_SELECTOR, "input[type='text']")
-                for inp in inputs:
-                    try:
-                        if inp.is_displayed() and inp.is_enabled():
-                            input_field = inp
-                            logger.info(f"    Found visible input field in document")
-                            break
-                    except:
-                        continue
-            except:
-                pass
-        
-        if not input_field:
-            logger.error(f"    ❌ Could not find input field for dropdown")
-            return False
-        
-        # Clear and type the value
-        input_field.clear()
-        time.sleep(0.2)
-        input_field.send_keys(value)
-        logger.info(f"    Typed '{value}' into input field")
-        time.sleep(1)  # Wait for options to filter
-        
-        # Try to find and click the option, or press Enter
-        try:
-            # Look for the option in the dropdown
-            options = driver.find_elements(By.CSS_SELECTOR, "[class*='option'], [id*='option']")
-            for option in options:
-                try:
-                    if value.lower() in option.text.lower():
-                        logger.info(f"    Found matching option: '{option.text}'")
-                        option.click()
-                        time.sleep(0.5)
-                        logger.info(f"    ✅ Selected option by clicking")
-                        return True
-                except:
-                    continue
-        except:
-            pass
-        
-        # Fallback: Press Enter
-        input_field.send_keys(Keys.ENTER)
+        # Click the input field to open dropdown (OLD WORKING METHOD)
+        input_elem = WebDriverWait(driver, 3).until(
+            EC.element_to_be_clickable((By.ID, input_id))
+        )
+        input_elem.click()
+        logger.info(f"    ✅ Clicked input field {input_id}")
         time.sleep(0.5)
-        logger.info(f"    ✅ Selected option by pressing Enter")
         
-        # Verify selection was made
+        # Find and click the option using XPath (OLD WORKING METHOD)
+        option_xpath = f"//div[contains(@class, 'option') and text()='{option_text}']"
+        option_elem = WebDriverWait(driver, 3).until(
+            EC.visibility_of_element_located((By.XPATH, option_xpath))
+        )
+        option_elem.click()
+        logger.info(f"    ✅ Clicked option: '{option_text}'")
         time.sleep(0.5)
-        try:
-            # Check if the value appears in the container
-            container_text = container_element.text.lower()
-            if value.lower() in container_text:
-                logger.info(f"    ✅ Verified selection: '{value}' appears in container")
-                return True
-            else:
-                logger.warning(f"    ⚠️ Selection verification unclear. Container text: '{container_element.text[:100]}'")
-                # Still return True as it might have worked
-                return True
-        except:
-            logger.warning(f"    ⚠️ Could not verify selection, but assuming success")
-            return True
+        
+        return True
         
     except Exception as e:
-        logger.error(f"    ❌ Error filling react-select: {e}\n{traceback.format_exc()}")
+        logger.error(f"    ❌ Error selecting react-select option: {e}\n{traceback.format_exc()}")
         return False
 
 def run_waitlist_automation(first_name, last_name, email, phone, course, players, headless=False, max_retries=60, retry_delay=5):
@@ -216,97 +148,45 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
             logger.warning(f"⚠️ Failed to set geolocation: {geo_error} - continuing anyway")
         
         logger.info(f"\n[2/7] Navigating to {WAITLIST_URL}...")
+        driver.get(WAITLIST_URL)
         
-        # RETRY LOGIC - Keep trying until we find the Join waitlist button!
+        # Wait for page to load (OLD WORKING METHOD)
+        wait = WebDriverWait(driver, 3)
+        wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))
+        logger.info("✅ Page loaded")
+        
+        # RETRY LOGIC - Keep refreshing until we find the Join waitlist button! (OLD WORKING METHOD)
+        logger.info(f"\n[3/7] Looking for 'Join waitlist' button (will retry up to {max_retries} times, {retry_delay}s between attempts)...")
         join_button = None
         attempt = 0
-        
-        logger.info(f"\n[3/7] Looking for 'Join waitlist' button (will retry up to {max_retries} times, {retry_delay}s between attempts)...")
         
         while attempt < max_retries and not join_button:
             attempt += 1
             
             try:
-                driver.get(WAITLIST_URL)
-                time.sleep(3)
+                # Use the EXACT selector from the working script (OLD WORKING METHOD)
+                join_button = WebDriverWait(driver, 3).until(
+                    EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'wwpp-primary-button')]"))
+                )
+                logger.info(f"  ✅ FOUND IT on attempt {attempt}! Clicking 'Join waitlist' button...")
+                join_button.click()
+                logger.info("✅ Successfully clicked the 'Join waitlist' button.")
+                break  # Exit loop if successful
                 
-                current_url = driver.current_url
-                logger.info(f"\n  Attempt {attempt}/{max_retries}")
-                logger.info(f"  Current URL: {current_url}")
-                
-                # Check if we're on the closed page
-                if "/closed" in current_url:
-                    logger.warning(f"  ⚠️ Waitlist closed - will retry in {retry_delay} seconds...")
-                    if attempt < max_retries:
-                        time.sleep(retry_delay)
-                        continue
-                    else:
-                        error_msg = f'Waitlist remained closed after {max_retries} attempts over {max_retries * retry_delay} seconds.'
-                        logger.error(f"  ❌ {error_msg}")
-                        return {
-                            'status': 'error',
-                            'message': error_msg
-                        }
-                
-                # Look for the Join waitlist button
-                wait = WebDriverWait(driver, 5)
-                wait.until(EC.presence_of_element_located((By.TAG_NAME, "button")))
-                
-                buttons = driver.find_elements(By.TAG_NAME, "button")
-                logger.info(f"  Found {len(buttons)} buttons on page")
-                
-                for btn in buttons:
-                    try:
-                        btn_text = btn.text.lower()
-                        if "join" in btn_text and "waitlist" in btn_text:
-                            join_button = btn
-                            logger.info(f"  ✅ FOUND IT! Button text: '{btn.text}'")
-                            break
-                    except Exception as btn_error:
-                        logger.debug(f"  Could not read button text: {btn_error}")
-                
-                if not join_button:
-                    logger.info(f"  'Join waitlist' button not found yet")
-                    if attempt < max_retries:
-                        logger.info(f"  Waiting {retry_delay} seconds before retry...")
-                        time.sleep(retry_delay)
-                    
             except Exception as e:
-                logger.error(f"  ❌ Error on attempt {attempt}: {e}\n{traceback.format_exc()}")
-                if attempt < max_retries:
-                    logger.info(f"  Retrying in {retry_delay} seconds...")
-                    time.sleep(retry_delay)
-                else:
-                    raise  # Re-raise on final attempt
+                if attempt >= max_retries:
+                    error_msg = f"Max attempts ({max_retries}) reached. Join waitlist button not found."
+                    logger.error(f"  ❌ {error_msg}")
+                    raise Exception(error_msg)
+                
+                now_str = datetime.now().strftime('%H:%M:%S')
+                logger.info(f"  [{now_str}] 'Join waitlist' button not available yet. Refreshing... (Attempt {attempt})")
+                time.sleep(retry_delay)  # Wait before refreshing
+                driver.refresh()  # Refresh instead of navigate (OLD WORKING METHOD)
+                wait.until(EC.presence_of_element_located((By.TAG_NAME, "body")))  # Wait for page to reload
         
-        # After all retries, check if we found the button
-        if not join_button:
-            try:
-                screenshot_path = f"screenshot_no_button_{int(time.time())}.png"
-                driver.save_screenshot(screenshot_path)
-                logger.error(f"❌ Screenshot saved: {screenshot_path}")
-            except Exception as screenshot_error:
-                logger.error(f"❌ Failed to save screenshot: {screenshot_error}")
-            
-            error_msg = f'Join waitlist button not found after {max_retries} attempts ({max_retries * retry_delay / 60:.1f} minutes). Waitlist may still be closed.'
-            logger.error(f"❌ {error_msg}")
-            return {
-                'status': 'error',
-                'message': error_msg
-            }
-        
-        logger.info("✅ Found button, clicking...")
-        try:
-            join_button.click()
-            time.sleep(3)
-            logger.info("✅ Successfully clicked join waitlist button")
-        except Exception as click_error:
-            error_msg = f"Failed to click join waitlist button: {click_error}"
-            logger.error(f"❌ {error_msg}")
-            return {
-                'status': 'error',
-                'message': error_msg
-            }
+        # If we get here, the button was found and clicked successfully
+        time.sleep(2)  # Give form time to load
         
         logger.info(f"\n[4/7] Filling out form...")
         
@@ -396,62 +276,38 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
             logger.error(f"❌ {error_msg}")
             return {'status': 'error', 'message': error_msg}
         
-        logger.info(f"\n[5/7] Selecting course and players...")
+        logger.info(f"\n[5/7] Selecting course and players using OLD WORKING METHOD...")
         
-        # Find all react-select containers
-        try:
-            react_selects = driver.find_elements(By.CSS_SELECTOR, ".css-1s2u09g-control, [class*='select__control']")
-            logger.info(f"Found {len(react_selects)} react-select dropdowns")
-        except Exception as e:
-            error_msg = f"Failed to find dropdown containers: {e}"
-            logger.error(f"❌ {error_msg}")
-            return {'status': 'error', 'message': error_msg}
-        
-        if len(react_selects) >= 2:
-            # First dropdown - likely Course
-            logger.info(f"  Selecting course: {course}")
-            if fill_react_select(driver, react_selects[0], course):
-                logger.info(f"  ✅ Selected course: {course}")
-            else:
-                logger.warning(f"  ⚠️ Could not select course: {course}")
-                return {'status': 'error', 'message': f'Failed to select course: {course}'}
-            
-            # Second dropdown - likely Players
-            logger.info(f"  Selecting players: {players}")
-            if fill_react_select(driver, react_selects[1], str(players)):
-                logger.info(f"  ✅ Selected players: {players}")
-            else:
-                logger.warning(f"  ⚠️ Could not select players: {players}")
-                return {'status': 'error', 'message': f'Failed to select players: {players}'}
+        # Use the EXACT method from the working script (OLD WORKING METHOD)
+        # Course dropdown
+        logger.info(f"  Selecting course: {course}")
+        if select_react_select_option(driver, "react-select-2-input", course):
+            logger.info(f"  ✅ Selected '{course}' in the course dropdown.")
         else:
-            error_msg = f"Found {len(react_selects)} dropdowns (expected 2)"
+            error_msg = f'Failed to select course: {course}'
             logger.error(f"  ❌ {error_msg}")
             return {'status': 'error', 'message': error_msg}
         
-        logger.info(f"\n[6/7] Looking for submit button...")
-        
-        # Find submit button
-        submit_button = None
-        try:
-            buttons = driver.find_elements(By.TAG_NAME, "button")
-            logger.info(f"Found {len(buttons)} buttons on form page")
-            
-            for btn in buttons:
-                try:
-                    btn_text = btn.text.lower()
-                    if "submit" in btn_text or "join" in btn_text or "add" in btn_text:
-                        submit_button = btn
-                        logger.info(f"✅ Found submit button: '{btn.text}'")
-                        break
-                except Exception as btn_error:
-                    logger.debug(f"Could not read button text: {btn_error}")
-        except Exception as e:
-            error_msg = f"Failed to find submit button: {e}"
-            logger.error(f"❌ {error_msg}")
+        # Players dropdown
+        logger.info(f"  Selecting players: {players}")
+        if select_react_select_option(driver, "react-select-3-input", str(players)):
+            logger.info(f"  ✅ Selected '{players}' in the players dropdown.")
+        else:
+            error_msg = f'Failed to select players: {players}'
+            logger.error(f"  ❌ {error_msg}")
             return {'status': 'error', 'message': error_msg}
         
-        if not submit_button:
-            error_msg = 'Submit button not found on form'
+        logger.info(f"\n[6/7] Looking for 'Join the line' button using OLD WORKING METHOD...")
+        
+        # Use the EXACT selector from the working script (OLD WORKING METHOD)
+        try:
+            join_line_button = WebDriverWait(driver, 2).until(
+                EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-cy='form-button']"))
+            )
+            logger.info(f"✅ Found 'Join the line' button")
+            submit_button = join_line_button
+        except Exception as e:
+            error_msg = f"Failed to find 'Join the line' button: {e}"
             logger.error(f"❌ {error_msg}")
             return {'status': 'error', 'message': error_msg}
         
