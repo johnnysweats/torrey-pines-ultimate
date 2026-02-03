@@ -9,6 +9,7 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.chrome.options import Options
+from selenium.webdriver.common.action_chains import ActionChains
 from datetime import datetime
 import time
 import logging
@@ -66,12 +67,52 @@ def setup_driver(headless=False):
         # OLD WORKING SCRIPT sets: driver.set_script_timeout(30)
         driver.set_script_timeout(30)
         
+        # Execute script to remove webdriver property (additional stealth)
+        driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
+        
         logger.info(f"✅ Chrome started successfully. Version: {driver.capabilities.get('browserVersion', 'Unknown')}")
         return driver
     except Exception as e:
         error_msg = f"❌ Failed to start Chrome: {e}\n{traceback.format_exc()}"
         logger.error(error_msg)
         raise
+
+def js_click(driver, element):
+    """
+    Click an element using JavaScript - more reliable for React apps
+    """
+    driver.execute_script("arguments[0].click();", element)
+
+def robust_click(driver, element):
+    """
+    Try multiple click methods to ensure the click registers
+    """
+    # First, scroll element into view
+    driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", element)
+    time.sleep(0.3)
+    
+    # Method 1: Try JavaScript click first (most reliable for React)
+    try:
+        driver.execute_script("arguments[0].click();", element)
+        return True
+    except Exception as e:
+        logger.warning(f"JS click failed: {e}")
+    
+    # Method 2: Try ActionChains click
+    try:
+        ActionChains(driver).move_to_element(element).click().perform()
+        return True
+    except Exception as e:
+        logger.warning(f"ActionChains click failed: {e}")
+    
+    # Method 3: Try native click as fallback
+    try:
+        element.click()
+        return True
+    except Exception as e:
+        logger.warning(f"Native click failed: {e}")
+    
+    return False
 
 def select_react_select_option(driver, input_id, option_text):
     """
@@ -85,7 +126,7 @@ def select_react_select_option(driver, input_id, option_text):
         input_elem = WebDriverWait(driver, 3).until(
             EC.element_to_be_clickable((By.ID, input_id))
         )
-        input_elem.click()
+        robust_click(driver, input_elem)
         logger.info(f"    ✅ Clicked input field {input_id}")
         time.sleep(0.5)
         
@@ -94,7 +135,7 @@ def select_react_select_option(driver, input_id, option_text):
         option_elem = WebDriverWait(driver, 3).until(
             EC.visibility_of_element_located((By.XPATH, option_xpath))
         )
-        option_elem.click()
+        robust_click(driver, option_elem)
         logger.info(f"    ✅ Clicked option: '{option_text}'")
         time.sleep(0.5)
         
@@ -103,6 +144,84 @@ def select_react_select_option(driver, input_id, option_text):
     except Exception as e:
         logger.error(f"    ❌ Error selecting react-select option: {e}\n{traceback.format_exc()}")
         return False
+
+def check_button_enabled(driver, button):
+    """Check if a button is actually enabled and clickable"""
+    try:
+        # Check disabled attribute
+        disabled = button.get_attribute("disabled")
+        if disabled:
+            return False, "Button has disabled attribute"
+        
+        # Check aria-disabled
+        aria_disabled = button.get_attribute("aria-disabled")
+        if aria_disabled == "true":
+            return False, "Button has aria-disabled=true"
+        
+        # Check if button has disabled class
+        classes = button.get_attribute("class") or ""
+        if "disabled" in classes.lower():
+            return False, f"Button has disabled class: {classes}"
+        
+        # Check computed style for pointer-events
+        pointer_events = driver.execute_script(
+            "return window.getComputedStyle(arguments[0]).pointerEvents;", button
+        )
+        if pointer_events == "none":
+            return False, "Button has pointer-events: none"
+        
+        return True, "Button appears enabled"
+    except Exception as e:
+        return False, f"Error checking button state: {e}"
+
+def verify_submission_success(driver, original_url, timeout=10):
+    """
+    Verify that the form actually submitted successfully
+    Returns (success: bool, message: str)
+    """
+    start_time = time.time()
+    
+    while time.time() - start_time < timeout:
+        current_url = driver.current_url
+        page_source = driver.page_source.lower()
+        
+        # Check for success indicators
+        success_indicators = [
+            "you're on the list" in page_source,
+            "you are on the list" in page_source,
+            "added to" in page_source and "waitlist" in page_source,
+            "confirmation" in current_url,
+            "success" in current_url,
+            "thank" in page_source and "you" in page_source and "waitlist" in page_source,
+            "/status" in current_url,  # Often redirects to status page after joining
+        ]
+        
+        if any(success_indicators):
+            return True, f"Success confirmed! URL: {current_url}"
+        
+        # Check for error indicators
+        error_indicators = [
+            "error" in page_source and "submit" in page_source,
+            "failed" in page_source,
+            "try again" in page_source,
+            "something went wrong" in page_source,
+        ]
+        
+        if any(error_indicators):
+            return False, "Form submission failed - error message detected on page"
+        
+        # Check if URL changed (good sign)
+        if current_url != original_url and "registration=waitlist" not in current_url:
+            return True, f"URL changed to: {current_url}"
+        
+        time.sleep(0.5)
+    
+    # If we're still on the same page after timeout, submission likely failed
+    final_url = driver.current_url
+    if final_url == original_url or "registration=waitlist" in final_url:
+        return False, f"Form did not submit - still on registration page: {final_url}"
+    
+    return True, f"Submission completed, final URL: {final_url}"
 
 def run_waitlist_automation(first_name, last_name, email, phone, course, players, headless=False, max_retries=60, retry_delay=5):
     """
@@ -124,7 +243,7 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
     """
     
     logger.info("=" * 60)
-    logger.info("TORREY PINES WAITLIST AUTOMATION")
+    logger.info("TORREY PINES WAITLIST AUTOMATION (FIXED VERSION)")
     logger.info("=" * 60)
     logger.info(f"Name: {first_name} {last_name}")
     logger.info(f"Email: {email}")
@@ -171,9 +290,14 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
                 join_waitlist_button = WebDriverWait(driver, 3).until(
                     EC.element_to_be_clickable((By.XPATH, "//button[contains(@class, 'wwpp-primary-button')]"))
                 )
-                join_waitlist_button.click()
-                logger.info("✅ Successfully clicked the 'Join waitlist' button.")
-                break  # Exit loop if successful (OLD WORKING METHOD)
+                
+                # Use robust click instead of native click
+                if robust_click(driver, join_waitlist_button):
+                    logger.info("✅ Successfully clicked the 'Join waitlist' button.")
+                    break  # Exit loop if successful (OLD WORKING METHOD)
+                else:
+                    raise Exception("All click methods failed")
+                    
             except Exception as e:
                 attempt += 1
                 if attempt >= max_attempts:
@@ -207,6 +331,9 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
                 logger.info(f"  [{now_str}] 'Join waitlist' button not available yet. Refreshing... (Attempt {attempt})")
                 time.sleep(2)  # OLD WORKING SCRIPT uses 2 seconds, not retry_delay
                 driver.refresh()  # OLD WORKING METHOD: refresh not navigate
+        
+        # Wait for form to load after clicking join waitlist
+        time.sleep(1)
         
         # OLD WORKING SCRIPT: Fill out the form and select dropdowns
         logger.info(f"\n[4/7] Filling out form (EXACT OLD WORKING METHOD)...")
@@ -266,40 +393,124 @@ def run_waitlist_automation(first_name, last_name, email, phone, course, players
             logger.error(f"  ❌ {error_msg}")
             return {'status': 'error', 'message': error_msg}
         
-        logger.info(f"\n[6/7] Looking for 'Join the line' button using OLD WORKING METHOD...")
+        logger.info(f"\n[6/7] Looking for 'Join the line' button...")
+        
+        # Capture current URL before submission for comparison
+        pre_submit_url = driver.current_url
+        logger.info(f"  Pre-submit URL: {pre_submit_url}")
         
         # Use the EXACT selector from the working script (OLD WORKING METHOD)
         try:
-            join_line_button = WebDriverWait(driver, 2).until(
-                EC.element_to_be_clickable((By.CSS_SELECTOR, "button[data-cy='form-button']"))
+            join_line_button = WebDriverWait(driver, 5).until(
+                EC.presence_of_element_located((By.CSS_SELECTOR, "button[data-cy='form-button']"))
             )
             logger.info(f"✅ Found 'Join the line' button")
-            submit_button = join_line_button
+            
+            # NEW: Check if button is actually enabled
+            is_enabled, status_msg = check_button_enabled(driver, join_line_button)
+            logger.info(f"  Button status: {status_msg}")
+            
+            if not is_enabled:
+                # Check if waitlist is closed
+                page_source = driver.page_source.lower()
+                if "not available" in page_source or "closed" in page_source:
+                    error_msg = "Waitlist is currently closed (button is disabled). The waitlist may not be open yet."
+                    logger.error(f"❌ {error_msg}")
+                    return {'status': 'error', 'message': error_msg}
+                else:
+                    logger.warning(f"⚠️ Button appears disabled but continuing anyway...")
+            
         except Exception as e:
             error_msg = f"Failed to find 'Join the line' button: {e}"
             logger.error(f"❌ {error_msg}")
             return {'status': 'error', 'message': error_msg}
         
         try:
-            logger.info("\n[7/7] Clicking 'Join the line' button (OLD WORKING METHOD)...")
-            join_line_button.click()
-            logger.info("✅ Successfully clicked the 'Join the line' button.")
+            logger.info("\n[7/7] Clicking 'Join the line' button (using robust click)...")
             
-            # OLD WORKING METHOD: Just wait 15 seconds like the original script
-            logger.info("Waiting 15 seconds for submission to process (OLD WORKING METHOD)...")
-            time.sleep(15)
+            # Scroll button into view first
+            driver.execute_script("arguments[0].scrollIntoView({block: 'center'});", join_line_button)
+            time.sleep(0.5)
             
-            # Check final state
-            current_url = driver.current_url
-            logger.info(f"Final URL after submission: {current_url}")
+            # Try multiple click methods
+            click_success = False
             
-            success_msg = f'Form submitted successfully for {first_name} {last_name}. Final URL: {current_url}'
-            logger.info(f"✅ {success_msg}")
+            # Method 1: JavaScript click (most reliable for React)
+            logger.info("  Attempting JavaScript click...")
+            try:
+                driver.execute_script("arguments[0].click();", join_line_button)
+                click_success = True
+                logger.info("  ✅ JavaScript click executed")
+            except Exception as e:
+                logger.warning(f"  JS click error: {e}")
             
-            return {
-                'status': 'success',
-                'message': success_msg
-            }
+            # Method 2: If JS click didn't cause navigation, try dispatching click event
+            time.sleep(1)
+            if driver.current_url == pre_submit_url:
+                logger.info("  URL unchanged, trying dispatchEvent click...")
+                try:
+                    driver.execute_script("""
+                        var event = new MouseEvent('click', {
+                            view: window,
+                            bubbles: true,
+                            cancelable: true
+                        });
+                        arguments[0].dispatchEvent(event);
+                    """, join_line_button)
+                    logger.info("  ✅ dispatchEvent click executed")
+                except Exception as e:
+                    logger.warning(f"  dispatchEvent click error: {e}")
+            
+            # Method 3: Try ActionChains as last resort
+            time.sleep(1)
+            if driver.current_url == pre_submit_url:
+                logger.info("  URL still unchanged, trying ActionChains click...")
+                try:
+                    ActionChains(driver).move_to_element(join_line_button).click().perform()
+                    logger.info("  ✅ ActionChains click executed")
+                except Exception as e:
+                    logger.warning(f"  ActionChains click error: {e}")
+            
+            # Wait and verify submission
+            logger.info("  Waiting for submission to process...")
+            time.sleep(3)
+            
+            # NEW: Actually verify the submission worked
+            success, verify_msg = verify_submission_success(driver, pre_submit_url, timeout=12)
+            
+            if success:
+                success_msg = f'Form submitted successfully for {first_name} {last_name}. {verify_msg}'
+                logger.info(f"✅ {success_msg}")
+                return {
+                    'status': 'success',
+                    'message': success_msg
+                }
+            else:
+                # Save debug info
+                try:
+                    import os
+                    debug_dir = "/tmp" if headless else "."
+                    timestamp = int(time.time())
+                    
+                    # Save screenshot if possible
+                    try:
+                        screenshot_file = os.path.join(debug_dir, f"debug_screenshot_{timestamp}.png")
+                        driver.save_screenshot(screenshot_file)
+                        logger.error(f"  📸 Saved screenshot to {screenshot_file}")
+                    except:
+                        pass
+                    
+                    # Save page source
+                    page_source_file = os.path.join(debug_dir, f"debug_page_source_{timestamp}.html")
+                    with open(page_source_file, 'w', encoding='utf-8') as f:
+                        f.write(driver.page_source)
+                    logger.error(f"  📄 Saved page source to {page_source_file}")
+                except:
+                    pass
+                
+                error_msg = f"Form submission failed: {verify_msg}"
+                logger.error(f"❌ {error_msg}")
+                return {'status': 'error', 'message': error_msg}
                 
         except Exception as submit_error:
             error_msg = f"Failed to click 'Join the line' button: {submit_error}"
@@ -345,4 +556,3 @@ if __name__ == "__main__":
     print(f"Status: {result['status']}")
     print(f"Message: {result['message']}")
     print("=" * 60)
-
